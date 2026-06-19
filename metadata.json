@@ -1,0 +1,6 @@
+{
+  "name": "Property and Rent Management System",
+  "description": "A modern, bilingual (English and Bengali) property and rent management software for tracking houses, flats, shops, and offices in Bangladesh, featuring agreement generation, rent collection, user management, and PDF exports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

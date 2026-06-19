@@ -1,0 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@8..144,100..1000&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.cdnfonts.com/css/google-sans');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Google Sans Flex", "Google Sans", "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+body {
+  font-family: "Google Sans Flex", "Google Sans", "Plus Jakarta Sans", "Inter", sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Google Sans Flex", "Google Sans", "Plus Jakarta Sans", "Inter", sans-serif;
+}
+
+/* Custom scrollbars / print layout enhancements */
+@media print {
+  body {
+    background-color: white !important;
+  }
+}
+
