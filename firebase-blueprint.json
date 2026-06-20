@@ -1,0 +1,65 @@
+{
+  "collections": {
+    "properties": {
+      "id": "string",
+      "name": "string",
+      "category": "string",
+      "address": "string",
+      "unitsCount": "number",
+      "imageUrl": "string"
+    },
+    "subUnits": {
+      "id": "string",
+      "propertyId": "string",
+      "unitNo": "string",
+      "monthlyRent": "number",
+      "status": "string"
+    },
+    "tenants": {
+      "id": "string",
+      "name": "string",
+      "phone": "string",
+      "email": "string",
+      "nid": "string"
+    },
+    "agreements": {
+      "id": "string",
+      "subunitId": "string",
+      "tenantId": "string",
+      "securityDeposit": "number",
+      "startDate": "string",
+      "endDate": "string",
+      "isActive": "boolean"
+    },
+    "rentRecords": {
+      "id": "string",
+      "subunitId": "string",
+      "month": "string",
+      "amount": "number",
+      "status": "string",
+      "paymentDate": "string",
+      "bdtAmount": "number"
+    },
+    "maintenanceLogs": {
+      "id": "string",
+      "propertyId": "string",
+      "subunitId": "string",
+      "title": "string",
+      "description": "string",
+      "cost": "number",
+      "status": "string",
+      "reportedDate": "string"
+    },
+    "users": {
+      "id": "string",
+      "name": "string",
+      "role": "string",
+      "email": "string"
+    },
+    "settings": {
+      "id": "string",
+      "bdtSymbol": "string",
+      "lang": "string"
+    }
+  }
+}

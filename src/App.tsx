@@ -40,8 +40,14 @@ import {
   Phone,
   LayoutGrid,
   ShoppingBag,
-  Briefcase
+  Briefcase,
+  Cloud,
+  CloudOff,
+  RefreshCw
 } from "lucide-react";
+
+import { loadCollection, saveCollection, loadSettings, saveSettings } from "./firebase";
+
 
 // Standard seed data to populate on first load
 const INITIAL_PROPERTIES: Property[] = [
@@ -80,9 +86,9 @@ const INITIAL_RENT_RECORDS: RentCollectionRecord[] = [
 ];
 
 const INITIAL_USERS: UserProfile[] = [
-  { id: "usr_1", name: "Al-Amin Hossain", email: "moderninnovix@gmail.com", phone: "01712345678", role: "Owner", isActive: true },
-  { id: "usr_2", name: "Zubair Ahmed", email: "zubair.manager@bashabari.com", phone: "01822334455", role: "Manager", isActive: true },
-  { id: "usr_3", name: "Ariful Islam", email: "ariful@outlook.com", phone: "01712984532", role: "Tenant", isActive: true },
+  { id: "usr_1", name: "Joy Dutta", email: "joydutta@gmail.com", phone: "01712345678", role: "Owner", isActive: true, password: "Joy@398878j", allowedMenus: ["dashboard", "properties", "tenants", "agreements", "rentCollection", "userManagement", "settings"] },
+  { id: "usr_2", name: "Zubair Ahmed", email: "zubair.manager@bashabari.com", phone: "01822334455", role: "Manager", isActive: true, password: "123456", allowedMenus: ["dashboard", "properties", "tenants", "agreements", "rentCollection"] },
+  { id: "usr_3", name: "Ariful Islam", email: "ariful@outlook.com", phone: "01712984532", role: "Tenant", isActive: true, password: "123456" },
 ];
 
 const INITIAL_MAINTENANCE_LOGS: MaintenanceLog[] = [
@@ -97,8 +103,8 @@ const DEFAULT_SETTINGS: SystemSettings = {
   logoTextEN: "🏢 bashaBari",
   logoTextBN: "🏢 বাসাবাড়ি",
   primaryColor: "indigo", // Available: indigo, emerald, amber, cyan, rose
-  ownerNameEN: "Al-Amin Hossain",
-  ownerNameBN: "আল-আমিন হোসেন",
+  ownerNameEN: "Joy Dutta",
+  ownerNameBN: "জয় দত্ত",
   contactPhone: "01712345678",
   bdtSymbol: "৳",
   termsTemplateEN: "1. Monthly rent must be cleared within the 10th of each running month.\n2. Advanced security deposit is refundable upon termination after utility adjustments.\n3. Pets are strictly prohibited without primary written consent.",
@@ -169,47 +175,167 @@ export default function App() {
 
   const [currentUser, setCurrentUser] = useState<UserProfile>(() => {
     const stored = localStorage.getItem("bb_current_user");
-    return stored ? JSON.parse(stored) : INITIAL_USERS[0];
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (parsed.id === "usr_1" || parsed.email === "joydutta398878@gmail.com" || parsed.email === "joydutta@gmail.com") {
+          parsed.email = "joydutta@gmail.com";
+          parsed.password = "Joy@398878j";
+          localStorage.setItem("bb_current_user", JSON.stringify(parsed));
+        }
+        return parsed;
+      } catch (e) {
+        // ignore
+      }
+    }
+    return INITIAL_USERS[0];
   });
+
+  // Cloud Synchronization syncState definitions
+  const [syncStatus, setSyncStatus] = useState<"loading" | "synced" | "syncing" | "error">("loading");
+  const [isCloudLoaded, setIsCloudLoaded] = useState<boolean>(false);
 
   // UI state
   const [activeMenu, setActiveMenu] = useState<string>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [loginEmail, setLoginEmail] = useState("moderninnovix@gmail.com");
+  const [loginEmail, setLoginEmail] = useState("joydutta@gmail.com");
+  const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");
 
-  // Save changes to localStorage on any state modification
+  // Load from Cloud once on startup
+  useEffect(() => {
+    async function initCloudData() {
+      setSyncStatus("loading");
+      try {
+        console.log("Starting full sync with Firestore...");
+        
+        const cloudProperties = await loadCollection("properties", INITIAL_PROPERTIES);
+        setProperties(cloudProperties);
+
+        const cloudSubunits = await loadCollection("subUnits", INITIAL_SUB_UNITS);
+        setSubUnits(cloudSubunits);
+
+        const cloudTenants = await loadCollection("tenants", INITIAL_TENANTS);
+        setTenants(cloudTenants);
+
+        const cloudAgreements = await loadCollection("agreements", INITIAL_AGREEMENTS);
+        setAgreements(cloudAgreements);
+
+        const cloudRentRecords = await loadCollection("rentRecords", INITIAL_RENT_RECORDS);
+        setRentRecords(cloudRentRecords);
+
+        const cloudLogs = await loadCollection("maintenanceLogs", INITIAL_MAINTENANCE_LOGS);
+        setMaintenanceLogs(cloudLogs);
+
+        const cloudUsers = await loadCollection("users", INITIAL_USERS);
+        // Ensure the permanent admin 'Joy Dutta' credentials are up-to-date
+        const migratedUsers = cloudUsers.map(user => {
+          if (user.id === "usr_1" || user.email === "joydutta398878@gmail.com") {
+            return {
+              ...user,
+              email: "joydutta@gmail.com",
+              name: "Joy Dutta",
+              password: "Joy@398878j"
+            };
+          }
+          return user;
+        });
+        setUsers(migratedUsers);
+
+        const cloudSettings = await loadSettings(DEFAULT_SETTINGS);
+        setSettings(cloudSettings);
+
+        setIsCloudLoaded(true);
+        setSyncStatus("synced");
+        console.log("Completed sync with Firestore.");
+      } catch (err) {
+        console.error("Failed to load Firebase data:", err);
+        setSyncStatus("error");
+      }
+    }
+    initCloudData();
+  }, []);
+
+  // Save changes to localStorage & Cloud Firestore model
   useEffect(() => {
     localStorage.setItem("bb_properties", JSON.stringify(properties));
-  }, [properties]);
+    if (isCloudLoaded) {
+      setSyncStatus("syncing");
+      saveCollection("properties", properties)
+        .then(() => setSyncStatus("synced"))
+        .catch(() => setSyncStatus("error"));
+    }
+  }, [properties, isCloudLoaded]);
 
   useEffect(() => {
     localStorage.setItem("bb_subunits", JSON.stringify(subUnits));
-  }, [subUnits]);
+    if (isCloudLoaded) {
+      setSyncStatus("syncing");
+      saveCollection("subUnits", subUnits)
+        .then(() => setSyncStatus("synced"))
+        .catch(() => setSyncStatus("error"));
+    }
+  }, [subUnits, isCloudLoaded]);
 
   useEffect(() => {
     localStorage.setItem("bb_tenants", JSON.stringify(tenants));
-  }, [tenants]);
+    if (isCloudLoaded) {
+      setSyncStatus("syncing");
+      saveCollection("tenants", tenants)
+        .then(() => setSyncStatus("synced"))
+        .catch(() => setSyncStatus("error"));
+    }
+  }, [tenants, isCloudLoaded]);
 
   useEffect(() => {
     localStorage.setItem("bb_agreements", JSON.stringify(agreements));
-  }, [agreements]);
+    if (isCloudLoaded) {
+      setSyncStatus("syncing");
+      saveCollection("agreements", agreements)
+        .then(() => setSyncStatus("synced"))
+        .catch(() => setSyncStatus("error"));
+    }
+  }, [agreements, isCloudLoaded]);
 
   useEffect(() => {
     localStorage.setItem("bb_rentrecords", JSON.stringify(rentRecords));
-  }, [rentRecords]);
+    if (isCloudLoaded) {
+      setSyncStatus("syncing");
+      saveCollection("rentRecords", rentRecords)
+        .then(() => setSyncStatus("synced"))
+        .catch(() => setSyncStatus("error"));
+    }
+  }, [rentRecords, isCloudLoaded]);
 
   useEffect(() => {
     localStorage.setItem("bb_maintenancelogs", JSON.stringify(maintenanceLogs));
-  }, [maintenanceLogs]);
+    if (isCloudLoaded) {
+      setSyncStatus("syncing");
+      saveCollection("maintenanceLogs", maintenanceLogs)
+        .then(() => setSyncStatus("synced"))
+        .catch(() => setSyncStatus("error"));
+    }
+  }, [maintenanceLogs, isCloudLoaded]);
 
   useEffect(() => {
     localStorage.setItem("bb_users", JSON.stringify(users));
-  }, [users]);
+    if (isCloudLoaded) {
+      setSyncStatus("syncing");
+      saveCollection("users", users)
+        .then(() => setSyncStatus("synced"))
+        .catch(() => setSyncStatus("error"));
+    }
+  }, [users, isCloudLoaded]);
 
   useEffect(() => {
     localStorage.setItem("bb_settings", JSON.stringify(settings));
-  }, [settings]);
+    if (isCloudLoaded) {
+      setSyncStatus("syncing");
+      saveSettings(settings)
+        .then(() => setSyncStatus("synced"))
+        .catch(() => setSyncStatus("error"));
+    }
+  }, [settings, isCloudLoaded]);
 
   useEffect(() => {
     localStorage.setItem("bb_lang", lang);
@@ -224,13 +350,19 @@ export default function App() {
         setLoginError(lang === "bn" ? "এই ইউজার প্রোফাইলটি নিষ্ক্রিয় রয়েছে!" : "This user account is deactivated!");
         return;
       }
+      const requiredPassword = foundUser.password || "123456";
+      if (loginPassword !== requiredPassword) {
+        setLoginError(lang === "bn" ? "ভুল পাসওয়ার্ড! আবার চেষ্টা করুন।" : "Incorrect password. Please try again.");
+        return;
+      }
       setCurrentUser(foundUser);
       setIsAuthenticated(true);
       setLoginError("");
+      setLoginPassword("");
       localStorage.setItem("bb_logged", "true");
       localStorage.setItem("bb_current_user", JSON.stringify(foundUser));
     } else {
-      setLoginError(lang === "bn" ? "ভুল ইমেইল আইডি! অনুগ্রহ করে নিবন্ধিত ইমেইল দিন।" : "Email ID invalid. Try logging in with the default registered landlord email.");
+      setLoginError(lang === "bn" ? "ভুল ইমেইল আইডি! অনুগ্রহ করে নিবন্ধিত ইমেইল দিন।" : "Email ID invalid. Try logging in with your registered account email.");
     }
   };
 
@@ -396,15 +528,25 @@ export default function App() {
   const themeClasses = getThemeColors();
 
   // Navigation configuration array dynamically filtered based on settings
+  const isTenant = currentUser?.role === "Tenant";
   const navItems = [
     { key: "dashboard", label: t.dashboard, icon: <LayoutDashboard className="h-4.5 w-4.5" />, enabled: settings.activeMenus.dashboard },
     { key: "properties", label: t.properties, icon: <Building className="h-4.5 w-4.5" />, enabled: settings.activeMenus.properties },
-    { key: "tenants", label: t.tenants, icon: <Users className="h-4.5 w-4.5" />, enabled: settings.activeMenus.tenants },
+    { key: "tenants", label: t.tenants, icon: <Users className="h-4.5 w-4.5" />, enabled: settings.activeMenus.tenants && !isTenant },
     { key: "agreements", label: t.agreements, icon: <FileText className="h-4.5 w-4.5" />, enabled: settings.activeMenus.agreements },
     { key: "rentCollection", label: t.rentCollection, icon: <DollarSign className="h-4.5 w-4.5" />, enabled: settings.activeMenus.rentCollection },
-    { key: "userManagement", label: t.userManagement, icon: <UserCheck className="h-4.5 w-4.5" />, enabled: settings.activeMenus.userManagement },
-    { key: "settings", label: t.settings, icon: <Settings className="h-4.5 w-4.5" />, enabled: settings.activeMenus.settings },
-  ].filter((item) => item.enabled);
+    { key: "userManagement", label: t.userManagement, icon: <UserCheck className="h-4.5 w-4.5" />, enabled: settings.activeMenus.userManagement && !isTenant },
+    { key: "settings", label: t.settings, icon: <Settings className="h-4.5 w-4.5" />, enabled: settings.activeMenus.settings && !isTenant },
+  ].filter((item) => {
+    if (!item.enabled) return false;
+    if (isTenant && ["tenants", "userManagement", "settings"].includes(item.key)) {
+      return false;
+    }
+    if (currentUser?.allowedMenus) {
+      return currentUser.allowedMenus.includes(item.key);
+    }
+    return true;
+  });
 
   // Switch menus if active page was disabled in settings
   useEffect(() => {
@@ -412,7 +554,7 @@ export default function App() {
     if (!isCurrentMenuEnabled && navItems.length > 0) {
       setActiveMenu(navItems[0].key);
     }
-  }, [settings.activeMenus, activeMenu]);
+  }, [settings.activeMenus, activeMenu, isTenant]);
 
   // LOGIN PAGE
   if (!isAuthenticated) {
@@ -432,7 +574,7 @@ export default function App() {
         <div className="sm:mx-auto sm:w-full sm:max-w-md text-center space-y-2">
           {/* Logo brand styling */}
           <div className="flex justify-center text-5xl">
-            {lang === "bn" ? "🏢" : "🏢"}
+            🏢
           </div>
           <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
             {lang === "bn" ? settings.appNameBN : settings.appNameEN}
@@ -446,12 +588,12 @@ export default function App() {
 
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md animate-scale-up">
           <div className="bg-white py-8 px-6 shadow-sm border border-slate-100 rounded-3xl sm:px-10 space-y-6">
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 p-3 rounded-2xl">
-              <Lock className="h-4.5 w-4.5 text-slate-500 shrink-0" />
+            <div className="flex items-center gap-2 bg-indigo-50/50 border border-indigo-100 p-3 rounded-2xl">
+              <Lock className="h-4.5 w-4.5 text-indigo-600 shrink-0" />
               <p className="text-xs text-slate-600 leading-relaxed">
                 {lang === "bn"
-                  ? "সিস্টেম টেস্ট করার জন্য নিচের ডেমো বাড়িওয়ালা আইডি দিয়ে লগইন করুন।"
-                  : "Use the credentials below to enter the owner portal dashboard."}
+                  ? "পোর্টালে লগইন করার জন্য অনুগ্রহ করে আপনার নিবন্ধিত ইমেইল আইডি এবং পাসওয়ার্ড ব্যবহার করুন।"
+                  : "Please enter your assigned Email Address and Password to access the property manager dashboard."}
               </p>
             </div>
 
@@ -465,8 +607,22 @@ export default function App() {
                   required
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
-                  className="w-full px-4 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 font-mono"
-                  placeholder="name@domain.com"
+                  className="w-full px-4 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 font-mono"
+                  placeholder="joydutta@gmail.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                  {lang === "bn" ? "নিরাপদ পাসওয়ার্ড" : "Secure Password"}
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  className="w-full px-4 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 font-mono"
+                  placeholder="••••••••"
                 />
               </div>
 
@@ -474,40 +630,11 @@ export default function App() {
 
               <button
                 type="submit"
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 border border-emerald-650 rounded-xl font-bold text-sm tracking-wide transition-all shadow-md cursor-pointer"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 border border-indigo-650 rounded-xl font-bold text-sm tracking-wide transition-all shadow-md cursor-pointer"
               >
                 {lang === "bn" ? "লগইন করুন →" : "Sign In Portal →"}
               </button>
             </form>
-
-            <div className="border-t border-slate-100 pt-5 space-y-2">
-              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest text-center">
-                {lang === "bn" ? "সিস্টেম ডেমো প্রোফাইল আইডি সমূহ" : "Simulated Testing Accounts"}
-              </h4>
-
-              <div className="space-y-1.5 pt-1">
-                {users.map((u) => (
-                  <button
-                    key={u.id}
-                    onClick={() => setLoginEmail(u.email)}
-                    type="button"
-                    className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left border transition-all text-xs ${
-                      loginEmail === u.email
-                        ? "border-emerald-500 bg-emerald-50/20 ring-1 ring-emerald-500"
-                        : "border-slate-100 hover:bg-slate-50 text-slate-600"
-                    }`}
-                  >
-                    <div>
-                      <strong className="block text-slate-800">{u.name}</strong>
-                      <span className="text-[10px] text-slate-400 font-mono">{u.email}</span>
-                    </div>
-                    <span className="text-[9px] font-bold uppercase py-0.5 px-2 bg-slate-100 text-slate-700 rounded-md">
-                      {u.role}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -613,12 +740,42 @@ export default function App() {
 
           {/* Top-right controls */}
           <div className="flex items-center gap-3">
-            {/* Perspective Warning */}
-            {currentUser.role !== "Owner" && (
-              <span className="hidden lg:inline-flex items-center gap-1 text-[11px] font-bold bg-amber-100 text-amber-800 px-3 py-1 rounded-full border border-amber-200">
-                ⚠️ Simulation: Limited view permissions of a <strong>{currentUser.role}</strong>
-              </span>
-            )}
+
+            {/* Cloud Sync Status Indicator */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold select-none transition-colors border-slate-100 bg-slate-50/50">
+              {syncStatus === "loading" && (
+                <>
+                  <RefreshCw className="h-3.5 w-3.5 text-indigo-500 animate-spin" />
+                  <span className="text-indigo-600 font-mono text-[10px] uppercase font-black">
+                    {lang === "bn" ? "ক্লাউড কানেক্ট হচ্ছে..." : "Connecting Cloud..."}
+                  </span>
+                </>
+              )}
+              {syncStatus === "syncing" && (
+                <>
+                  <RefreshCw className="h-3.5 w-3.5 text-amber-500 animate-spin" />
+                  <span className="text-amber-600 font-mono text-[10px] uppercase font-black">
+                    {lang === "bn" ? "সিঙ্ক হচ্ছে..." : "Syncing..."}
+                  </span>
+                </>
+              )}
+              {syncStatus === "synced" && (
+                <>
+                  <Cloud className="h-3.5 w-3.5 text-emerald-500" />
+                  <span className="text-emerald-700 font-mono text-[10px] uppercase font-semibold">
+                    {lang === "bn" ? "ক্লাউড লাইভ" : "Cloud Active"}
+                  </span>
+                </>
+              )}
+              {syncStatus === "error" && (
+                <>
+                  <CloudOff className="h-3.5 w-3.5 text-rose-500" />
+                  <span className="text-rose-600 font-mono text-[10px] uppercase font-semibold">
+                    {lang === "bn" ? "লোকাল ক্যাশ" : "Local Cached"}
+                  </span>
+                </>
+              )}
+            </div>
 
             {/* Language switcher */}
             <button
@@ -651,6 +808,7 @@ export default function App() {
                 rentRecords={rentRecords}
                 settings={settings}
                 lang={lang}
+                currentUser={currentUser}
               />
             )}
 
@@ -668,6 +826,7 @@ export default function App() {
                 onDeleteMaintenanceLog={handleDeleteMaintenanceLog}
                 onUpdateMaintenanceStatus={handleUpdateMaintenanceStatus}
                 lang={lang}
+                currentUser={currentUser}
               />
             )}
 
@@ -691,6 +850,7 @@ export default function App() {
                 onAddAgreement={handleAddAgreement}
                 onTerminateAgreement={handleTerminateAgreement}
                 lang={lang}
+                currentUser={currentUser}
               />
             )}
 
@@ -704,6 +864,7 @@ export default function App() {
                 settings={settings}
                 onAddRentRecord={handleAddRentRecord}
                 lang={lang}
+                currentUser={currentUser}
               />
             )}
 

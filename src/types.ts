@@ -4,7 +4,7 @@
  */
 
 // Core Roles
-export type UserRole = "Owner" | "Manager" | "Tenant";
+export type UserRole = "Owner" | "Manager" | "Maintenance" | "Tenant";
 
 // Property Categories
 export type PropertyCategory = "House" | "Flat" | "Shop" | "Office";
@@ -17,6 +17,8 @@ export interface UserProfile {
   phone: string;
   role: UserRole;
   isActive: boolean;
+  password?: string;
+  allowedMenus?: string[];
 }
 
 // Property Record

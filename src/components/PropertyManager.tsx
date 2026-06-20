@@ -4,8 +4,8 @@
  */
 
 import React, { useState } from "react";
-import { Property, SubUnit, PropertyCategory, DEFAULT_TRANSLATIONS, SystemSettings, MaintenanceLog } from "../types";
-import { Building, LayoutGrid, Home, ShoppingBag, Briefcase, Plus, Search, Trash2, Edit3, Tag, Wrench, PhoneCall, CheckCircle, Clock, AlertCircle, Calendar, DollarSign, Upload, Image } from "lucide-react";
+import { Property, SubUnit, PropertyCategory, DEFAULT_TRANSLATIONS, SystemSettings, MaintenanceLog, UserProfile } from "../types";
+import { Building, LayoutGrid, Home, ShoppingBag, Briefcase, Plus, Search, Trash2, Edit3, Tag, Wrench, PhoneCall, CheckCircle, Clock, AlertCircle, Calendar, DollarSign, Upload, Image, HelpCircle } from "lucide-react";
 
 interface PropertyManagerProps {
   properties: Property[];
@@ -20,6 +20,7 @@ interface PropertyManagerProps {
   onDeleteMaintenanceLog: (id: string) => void;
   onUpdateMaintenanceStatus: (id: string, status: "Pending" | "In Progress" | "Completed") => void;
   lang: "en" | "bn";
+  currentUser?: UserProfile;
 }
 
 export default function PropertyManager({
@@ -35,6 +36,7 @@ export default function PropertyManager({
   onDeleteMaintenanceLog,
   onUpdateMaintenanceStatus,
   lang,
+  currentUser,
 }: PropertyManagerProps) {
   const t = DEFAULT_TRANSLATIONS[lang];
 
@@ -103,6 +105,261 @@ export default function PropertyManager({
   const [logTechPhone, setLogTechPhone] = useState("");
   const [logStatus, setLogStatus] = useState<"Pending" | "In Progress" | "Completed">("Pending");
   const [logFilterSubUnit, setLogFilterSubUnit] = useState<string>("All");
+
+  // Tenant-specific states
+  const [showTenantLogModal, setShowTenantLogModal] = useState(false);
+  const [tenantRepairTask, setTenantRepairTask] = useState("");
+  const [tenantSelectedUnitId, setTenantSelectedUnitId] = useState("");
+
+  const getTenantIdByEmail = (email?: string) => {
+    if (email === "ariful@outlook.com") return "tenant_1";
+    if (email === "modina.jw@gmail.com") return "tenant_2";
+    if (email === "ceo@fintech.com.bd") return "tenant_3";
+    return "";
+  };
+
+  const isTenant = currentUser?.role === "Tenant";
+
+  // CHECK FOR TENANT PERSPECTIVE LIMITS: Render Tenant view if logged in role is Tenant
+  if (isTenant) {
+    const tenantId = getTenantIdByEmail(currentUser?.email);
+    const mySubUnits = subUnits.filter((u) => u.currentTenantId === (tenantId || "tenant_1"));
+    const myProperties = properties.filter((p) => mySubUnits.some((unit) => unit.propertyId === p.id));
+    const myMaintenanceLogs = maintenanceLogs.filter((log) => mySubUnits.some((unit) => unit.id === log.subUnitId));
+
+    const handleTenantSubmitLog = (e: React.FormEvent) => {
+      e.preventDefault();
+      const targetUnitId = tenantSelectedUnitId || mySubUnits[0]?.id;
+      if (!tenantRepairTask || !targetUnitId) return;
+
+      const targetUnit = mySubUnits.find((u) => u.id === targetUnitId);
+      if (!targetUnit) return;
+
+      const newLog: MaintenanceLog = {
+        id: "log_" + Math.random().toString(36).substr(2, 9),
+        propertyId: targetUnit.propertyId,
+        subUnitId: targetUnit.id,
+        repairTask: tenantRepairTask,
+        cost: 0,
+        completedStatus: "Pending",
+        technicianName: "Unassigned",
+        technicianPhone: "N/A",
+        loggedDate: new Date().toISOString().split("T")[0],
+      };
+
+      onAddMaintenanceLog(newLog);
+      setTenantRepairTask("");
+      setShowTenantLogModal(false);
+    };
+
+    return (
+      <div className="space-y-6">
+        {/* Tenant Header */}
+        <div className="flex flex-col md:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-5">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-800">
+              {lang === "bn" ? "🏢 আমার ভাড়াকৃত ইউনিট ও প্রপার্টি সমুহ" : "🏢 My Rented Property & Sub-units"}
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              {lang === "bn"
+                ? "আপনার বরাদ্দকৃত ফ্ল্যাট বা কমার্শিয়াল ডেসিনেশনের বিস্তারিত বিবরণ এবং সচল ইউটিলিটি মডিউল দেখুন।"
+                : "Check your assigned physical property coordinates, configurations, category settings and lease terms."}
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              if (mySubUnits.length > 0) {
+                setTenantSelectedUnitId(mySubUnits[0].id);
+                setShowTenantLogModal(true);
+              }
+            }}
+            id="tenant-request-repair-btn"
+            className="flex items-center justify-center gap-2 px-4.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors shrink-0"
+          >
+            <Wrench className="h-4 w-4" />
+            <span>{lang === "bn" ? "রক্ষণাবেক্ষণের জন্য অনুরোধ করুন" : "Request Maintenance"}</span>
+          </button>
+        </div>
+
+        {/* My Units Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {mySubUnits.length > 0 ? (
+            mySubUnits.map((unit) => {
+              const p = myProperties.find((prop) => prop.id === unit.propertyId);
+              const unitLogs = myMaintenanceLogs.filter((l) => l.subUnitId === unit.id);
+
+              return (
+                <div key={unit.id} className="bg-white border border-slate-200 rounded-2xl shadow-3xs overflow-hidden flex flex-col">
+                  {p?.imageUrl ? (
+                    <div className="h-36 overflow-hidden relative">
+                      <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      <div className="absolute top-3 left-3 bg-indigo-600/90 text-white font-bold text-[10px] uppercase px-2.5 py-0.5 rounded-md backdrop-blur-xs">
+                        {p.category}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-32 bg-slate-50 flex items-center justify-center border-b border-slate-100">
+                      <Building className="h-10 w-10 text-slate-300" />
+                    </div>
+                  )}
+
+                  <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex items-center justify-between">
+                        <strong className="text-slate-800 font-extrabold text-sm">{p?.name || "Bashabari Residence"}</strong>
+                        <span className="py-0.5 px-2 bg-emerald-50 text-emerald-800 border border-emerald-100 font-bold rounded-lg text-[10px]">
+                          {unit.unitNo}
+                        </span>
+                      </div>
+                      <p className="text-slate-400 font-medium">{p?.address}</p>
+
+                      <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-100">
+                        <div className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
+                          <span className="text-slate-400 font-extrabold text-[10px] block uppercase">{lang === "bn" ? "মাসিক ভাড়া" : "Rent Rate"}</span>
+                          <strong className="text-slate-800 font-mono font-bold text-xs">{settings.bdtSymbol} {unit.monthlyRent.toLocaleString()}</strong>
+                        </div>
+                        <div className="bg-slate-50/50 p-2.5 rounded-lg border border-slate-100">
+                          <span className="text-slate-400 font-extrabold text-[10px] block uppercase">{lang === "bn" ? "নিরাপত্তা জামানত" : "Security Deposit"}</span>
+                          <strong className="text-slate-800 font-mono font-bold text-xs">{settings.bdtSymbol} {unit.securityDeposit.toLocaleString()}</strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3.5 border-t border-slate-100 pt-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                          <Wrench className="h-3.5 w-3.5 text-indigo-600" />
+                          <span>{lang === "bn" ? "সংশ্লিষ্ট রক্ষণাবেক্ষণ হিস্ট্রি" : "Unit Maintenance History"}</span>
+                        </h4>
+                        <span className="text-[10px] font-mono text-slate-400">Total: {unitLogs.length}</span>
+                      </div>
+
+                      {unitLogs.length > 0 ? (
+                        <div className="space-y-2 max-h-36 overflow-y-auto">
+                          {unitLogs.map((l) => (
+                            <div key={l.id} className="p-2.5 bg-slate-50/50 border border-slate-150 rounded-xl space-y-1.5 text-left text-xs">
+                              <div className="flex items-center justify-between gap-2">
+                                <strong className="text-slate-800 font-bold leading-tight">{l.repairTask}</strong>
+                                <span className={`inline-flex items-center gap-1 text-[9px] font-black px-1.5 py-0.5 rounded-md ${
+                                  l.completedStatus === "Completed"
+                                    ? "bg-green-50 text-green-700 border border-green-150"
+                                    : l.completedStatus === "In Progress"
+                                    ? "bg-sky-50 text-sky-700 border border-sky-150"
+                                    : "bg-amber-50 text-amber-700 border border-amber-150"
+                                }`}>
+                                  {l.completedStatus === "Completed" && <CheckCircle className="h-2.5 w-2.5" />}
+                                  {l.completedStatus === "In Progress" && <Clock className="h-2.5 w-2.5 animate-spin" />}
+                                  {l.completedStatus === "Pending" && <AlertCircle className="h-2.5 w-2.5" />}
+                                  {l.completedStatus}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-[10px] text-slate-450 border-t border-slate-100/60 pt-1.5 mt-1 font-mono">
+                                <span>Logged: {l.loggedDate}</span>
+                                <span>Tech: {l.technicianName}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-slate-400 italic py-2 text-center">
+                          {lang === "bn" ? "এই ইউনিটের জন্য কোনো মেরামত রেকর্ড নেই।" : "No maintenance or repair actions recorded for this unit."}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div className="col-span-full md:p-12 text-center space-y-3 bg-white border border-slate-200 rounded-2xl">
+              <Building className="h-10 w-10 mx-auto text-slate-300" />
+              <h3 className="text-slate-800 font-bold text-sm">No Active Unit Found</h3>
+              <p className="text-slate-400 text-xs max-w-sm mx-auto">According to database indexes, there are no physical sub-units registered under your email account.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Tenant Request Maintenance Modal */}
+        {showTenantLogModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+            <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden animate-scale-up">
+              <div className="bg-gradient-to-r from-indigo-900 to-indigo-850 p-4 text-white flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Wrench className="h-4.5 w-4.5 text-indigo-300" />
+                  <h3 className="font-extrabold text-sm uppercase tracking-wider">{lang === "bn" ? "নতুন মেরামতের আবেদন" : "Submit Rental Repair"}</h3>
+                </div>
+                <button
+                  onClick={() => setShowTenantLogModal(false)}
+                  className="rounded-lg p-1 hover:bg-white/10 text-white/80 transition-colors"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleTenantSubmitLog} className="p-5 space-y-4">
+                {mySubUnits.length > 1 && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-500 uppercase block">{lang === "bn" ? "ইউনিট নির্বাচন করুন" : "Select Affected Unit"}</label>
+                    <select
+                      value={tenantSelectedUnitId}
+                      onChange={(e) => setTenantSelectedUnitId(e.target.value)}
+                      className="w-full text-xs bg-slate-50 border border-slate-200/80 rounded-xl px-3.5 py-2 font-medium focus:ring-1 focus:ring-indigo-500"
+                    >
+                      {mySubUnits.map((unit) => {
+                        const prop = myProperties.find((p) => p.id === unit.propertyId);
+                        return (
+                          <option key={unit.id} value={unit.id}>
+                            {prop?.name} - Suite {unit.unitNo}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase block">{lang === "bn" ? "সমস্যার বিবরণ বলুন" : "Describe the Repair Issue"}</label>
+                  <textarea
+                    required
+                    placeholder={lang === "bn" ? "উদা: ওয়াশরুমের কল দিয়ে পানি পড়তেছে, বেসিন জ্যাম ইত্যাদি" : "e.g. Water dripping from basin pipeline, light spark in kitchen, AC leakage"}
+                    value={tenantRepairTask}
+                    onChange={(e) => setTenantRepairTask(e.target.value)}
+                    rows={4}
+                    className="w-full text-xs bg-slate-50 border border-slate-200/80 rounded-xl px-3.5 py-2.5 font-medium focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-150 text-[11px] text-slate-500 leading-relaxed flex items-start gap-2">
+                  <HelpCircle className="h-4 w-4 text-indigo-500 shrink-0 mt-0.5" />
+                  <p>
+                    {lang === "bn"
+                      ? "আপনার রক্ষণাবেক্ষণ ফর্ম জমা দিলে বাড়িওয়ালা পোর্টালে সরাসরি দেখতে পাবেন। বাড়িওয়ালা যাচাইপূর্বক টেকনিশিয়ান নিয়োগ করবেন।"
+                      : "Once submitted, this query will load instantly on the owner dashboard. Management will assign technicians and manage costs."}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-end gap-2.5 pt-3.5 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowTenantLogModal(false)}
+                    className="px-4 py-2 bg-slate-55 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs rounded-xl transition-colors"
+                  >
+                    {lang === "bn" ? "বাতিল" : "Cancel"}
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors"
+                  >
+                    {lang === "bn" ? "আবেদন জমা দিন" : "Submit Request"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const handleSubmitProperty = (e: React.FormEvent) => {
     e.preventDefault();

@@ -30,6 +30,14 @@ export default function UserManagement({
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState<UserRole>("Tenant");
+  const [password, setPassword] = useState("");
+  const [allowedMenus, setAllowedMenus] = useState<string[]>([
+    "dashboard",
+    "properties",
+    "tenants",
+    "agreements",
+    "rentCollection",
+  ]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +50,16 @@ export default function UserManagement({
       phone,
       role,
       isActive: true,
+      password: password || "123456",
+      allowedMenus: role === "Owner" ? [
+        "dashboard",
+        "properties",
+        "tenants",
+        "agreements",
+        "rentCollection",
+        "userManagement",
+        "settings",
+      ] : allowedMenus,
     };
 
     onAddUser(newUser);
@@ -49,6 +67,8 @@ export default function UserManagement({
     setEmail("");
     setPhone("");
     setRole("Tenant");
+    setPassword("");
+    setAllowedMenus(["dashboard", "properties", "tenants", "agreements", "rentCollection"]);
     setShowAddModal(false);
   };
 
@@ -58,6 +78,8 @@ export default function UserManagement({
         return "bg-purple-100 text-purple-800 border-purple-200";
       case "Manager":
         return "bg-indigo-100 text-indigo-800 border-indigo-200";
+      case "Maintenance":
+        return "bg-amber-100 text-amber-800 border-amber-200";
       case "Tenant":
         return "bg-green-50 text-green-700 border-green-200";
     }
@@ -100,6 +122,8 @@ export default function UserManagement({
                   ? (lang === "bn" ? "মালিক (First Party)" : "System Owner")
                   : currentUser.role === "Manager"
                   ? (lang === "bn" ? "ম্যানেজার" : "Property Manager")
+                  : currentUser.role === "Maintenance"
+                  ? (lang === "bn" ? "রক্ষণাবেক্ষণ কর্মী" : "Maintenance Manager")
                   : (lang === "bn" ? "ভাড়াটিয়া" : "Occupant / Tenant")}
               </span>
             </h2>
@@ -170,6 +194,16 @@ export default function UserManagement({
                     <span className={`inline-flex items-center text-xs px-2.5 py-1 rounded-full border font-medium ${getRoleBadge(profile.role)}`}>
                       {profile.role}
                     </span>
+                    {profile.role !== "Tenant" && (
+                      <div className="text-[10px] text-slate-400 mt-1 leading-tight font-sans">
+                        <strong>Menus:</strong> {profile.allowedMenus && profile.allowedMenus.length > 0 ? profile.allowedMenus.map(m => m.charAt(0).toUpperCase() + m.slice(1)).join(", ") : "None"}
+                      </div>
+                    )}
+                    {profile.password && (
+                      <div className="text-[10px] text-slate-400 mt-0.5 leading-tight font-mono">
+                        🔑 {profile.password}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 space-y-0.5 font-mono text-xs text-slate-500">
                     <div className="flex items-center gap-1.5 text-slate-600 font-sans text-sm">
@@ -282,14 +316,77 @@ export default function UserManagement({
                 </label>
                 <select
                   value={role}
-                  onChange={(e) => setRole(e.target.value as UserRole)}
+                  onChange={(e) => {
+                    const r = e.target.value as UserRole;
+                    setRole(r);
+                    if (r === "Owner") {
+                      setAllowedMenus(["dashboard", "properties", "tenants", "agreements", "rentCollection", "userManagement", "settings"]);
+                    } else if (r === "Maintenance") {
+                      setAllowedMenus(["dashboard", "properties"]);
+                    } else {
+                      setAllowedMenus(["dashboard", "properties", "tenants", "agreements", "rentCollection"]);
+                    }
+                  }}
                   className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
                 >
                   <option value="Owner">{lang === "bn" ? "মালিক (First Party Landlord)" : "Owner / Landlord"}</option>
                   <option value="Manager">{lang === "bn" ? "ম্যানেজার (Property Manager)" : "Manager / Supervisor"}</option>
+                  <option value="Maintenance">{lang === "bn" ? "রক্ষণাবেক্ষণ ম্যানেজার (Maintenance Manager)" : "Maintenance Manager"}</option>
                   <option value="Tenant">{lang === "bn" ? "ভাড়াটিয়া (Tenant)" : "Tenant / Rentee"}</option>
                 </select>
               </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                  {lang === "bn" ? "লগইন পাসওয়ার্ড" : "Login Password"}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="e.g. 123456"
+                  className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-mono"
+                />
+              </div>
+
+              {role !== "Tenant" && (
+                <div className="space-y-2">
+                  <label className="block text-xs font-medium text-slate-600">
+                    {lang === "bn" ? "অনুমোদিত মেনুসমূহ (Permissions)" : "Allowed Menus & Permissions"}
+                  </label>
+                  <p className="text-[10px] text-slate-400">
+                    {lang === "bn" ? "এই ইউজার শুধুমাত্র নির্বাচিত মেনুগুলো দেখতে পারবে।" : "This user will only see the selected navigation menus."}
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                    {[
+                      { key: "dashboard", label: lang === "bn" ? "ড্যাশবোর্ড" : "Dashboard" },
+                      { key: "properties", label: lang === "bn" ? "সম্পত্তি তালিকা" : "Properties" },
+                      { key: "tenants", label: lang === "bn" ? "ভাড়াটিয়া তথ্য" : "Tenants" },
+                      { key: "agreements", label: lang === "bn" ? "ভাড়া চুক্তিপত্র" : "Agreements" },
+                      { key: "rentCollection", label: lang === "bn" ? "ভাড়া কালেকশন" : "Rent Ledger" },
+                      { key: "userManagement", label: lang === "bn" ? "ইউজার ম্যানেজমেন্ট" : "Users" },
+                      { key: "settings", label: lang === "bn" ? "সেটিংস" : "Settings" }
+                    ].map((item) => (
+                      <label key={item.key} className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-600">
+                        <input
+                          type="checkbox"
+                          checked={allowedMenus.includes(item.key)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setAllowedMenus([...allowedMenus, item.key]);
+                            } else {
+                              setAllowedMenus(allowedMenus.filter((m) => m !== item.key));
+                            }
+                          }}
+                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
+                        />
+                        <span>{item.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                 <button

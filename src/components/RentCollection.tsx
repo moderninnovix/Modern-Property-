@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from "react";
-import { RentCollectionRecord, LicenseAgreement, Property, SubUnit, Tenant, SystemSettings, DEFAULT_TRANSLATIONS } from "../types";
+import { RentCollectionRecord, LicenseAgreement, Property, SubUnit, Tenant, SystemSettings, DEFAULT_TRANSLATIONS, UserProfile } from "../types";
 import { DollarSign, Plus, Printer, Search, Calendar, FileCheck2, UserCheck, Smartphone, CheckSquare, Sparkles } from "lucide-react";
 
 interface RentCollectionProps {
@@ -16,6 +16,7 @@ interface RentCollectionProps {
   settings: SystemSettings;
   onAddRentRecord: (record: RentCollectionRecord) => void;
   lang: "en" | "bn";
+  currentUser?: UserProfile;
 }
 
 export default function RentCollection({
@@ -27,6 +28,7 @@ export default function RentCollection({
   settings,
   onAddRentRecord,
   lang,
+  currentUser,
 }: RentCollectionProps) {
   const t = DEFAULT_TRANSLATIONS[lang];
   const [searchQuery, setSearchQuery] = useState("");
@@ -103,16 +105,28 @@ export default function RentCollection({
 
   const activeLeaseList = agreements.filter((ag) => ag.status === "Active");
 
+  const getTenantIdByEmail = (email?: string) => {
+    if (email === "ariful@outlook.com") return "tenant_1";
+    if (email === "modina.jw@gmail.com") return "tenant_2";
+    if (email === "ceo@fintech.com.bd") return "tenant_3";
+    return "";
+  };
+
+  const isTenant = currentUser?.role === "Tenant";
+  const tenantId = getTenantIdByEmail(currentUser?.email);
+
   // Filters records
-  const filteredRecords = rentRecords.filter((rec) => {
-    const tName = getTenantName(rec.tenantId).toLowerCase();
-    const uNo = getUnitNo(rec.subUnitId).toLowerCase();
-    const pName = getPropertyName(rec.propertyId).toLowerCase();
-    const query = searchQuery.toLowerCase();
-    const matchesSearch = tName.includes(query) || uNo.includes(query) || pName.includes(query) || rec.receiptNo.toLowerCase().includes(query);
-    const matchesStatus = statusFilter === "All" || rec.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredRecords = rentRecords
+    .filter((rec) => !isTenant || rec.tenantId === (tenantId || "tenant_1"))
+    .filter((rec) => {
+      const tName = getTenantName(rec.tenantId).toLowerCase();
+      const uNo = getUnitNo(rec.subUnitId).toLowerCase();
+      const pName = getPropertyName(rec.propertyId).toLowerCase();
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = tName.includes(query) || uNo.includes(query) || pName.includes(query) || rec.receiptNo.toLowerCase().includes(query);
+      const matchesStatus = statusFilter === "All" || rec.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
 
   return (
     <div className="space-y-6">
@@ -239,19 +253,21 @@ export default function RentCollection({
             </p>
           </div>
 
-          <button
-            onClick={() => {
-              if (activeLeaseList.length === 0) {
-                alert(lang === "bn" ? "প্রথমে ভাড়া চুক্তিপত্র (Agreement) তৈরি করুন!" : "Create an active lease agreement first!");
-                return;
-              }
-              setShowAddModal(true);
-            }}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition-all shadow-sm"
-          >
-            <Plus className="h-4 w-4" />
-            {t.addPayment}
-          </button>
+          {!isTenant && (
+            <button
+              onClick={() => {
+                if (activeLeaseList.length === 0) {
+                  alert(lang === "bn" ? "প্রথমে ভাড়া চুক্তিপত্র (Agreement) তৈরি করুন!" : "Create an active lease agreement first!");
+                  return;
+                }
+                setShowAddModal(true);
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition-all shadow-sm"
+            >
+              <Plus className="h-4 w-4" />
+              {t.addPayment}
+            </button>
+          )}
         </div>
 
         {/* Ledger filters */}

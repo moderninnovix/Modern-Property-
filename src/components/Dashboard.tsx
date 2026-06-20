@@ -4,8 +4,8 @@
  */
 
 import React from "react";
-import { Property, SubUnit, Tenant, LicenseAgreement, RentCollectionRecord, SystemSettings, DEFAULT_TRANSLATIONS } from "../types";
-import { DollarSign, Landmark, Building2, UserCheck, TrendingUp, AlertCircle, Sparkles, LogIn, ArrowUpRight, Percent, Clock } from "lucide-react";
+import { Property, SubUnit, Tenant, LicenseAgreement, RentCollectionRecord, SystemSettings, DEFAULT_TRANSLATIONS, UserProfile } from "../types";
+import { DollarSign, Landmark, Building2, UserCheck, TrendingUp, AlertCircle, Sparkles, LogIn, ArrowUpRight, Percent, Clock, FileText, CheckCircle, ShieldAlert, PhoneCall, Home, Layers, Store, Briefcase } from "lucide-react";
 
 interface DashboardProps {
   properties: Property[];
@@ -15,6 +15,7 @@ interface DashboardProps {
   rentRecords: RentCollectionRecord[];
   settings: SystemSettings;
   lang: "en" | "bn";
+  currentUser?: UserProfile;
 }
 
 export default function Dashboard({
@@ -25,8 +26,286 @@ export default function Dashboard({
   rentRecords,
   settings,
   lang,
+  currentUser,
 }: DashboardProps) {
   const t = DEFAULT_TRANSLATIONS[lang];
+
+  // CHECK FOR TENANT PERSPECTIVE LIMITS: Render Tenant portal if logged in role is Tenant
+  const isTenant = currentUser?.role === "Tenant";
+  if (isTenant) {
+    const matchedTenant = tenants.find((tn) => tn.email === currentUser?.email);
+    const displayTenant = matchedTenant || tenants.find((tn) => tn.id === "tenant_1") || tenants[0];
+    const myAgreements = agreements.filter((ag) => ag.tenantId === displayTenant?.id);
+    const activeAgreement = myAgreements.find((ag) => ag.status === "Active") || myAgreements[0];
+    const mySubUnit = activeAgreement ? subUnits.find((u) => u.id === activeAgreement.subUnitId) : null;
+    const myProperty = mySubUnit ? properties.find((p) => p.id === mySubUnit.propertyId) : null;
+    const myRentRecords = rentRecords.filter((rec) => rec.tenantId === displayTenant?.id);
+
+    const totalPaidAmount = myRentRecords
+      .filter((rec) => rec.status === "Paid" || rec.status === "Partial")
+      .reduce((sum, rec) => sum + rec.amountPaid, 0);
+
+    const totalDueAmount = myRentRecords.reduce((sum, rec) => sum + rec.amountDue, 0);
+
+    return (
+      <div className="space-y-6">
+        {/* Welcome Tenant Banner */}
+        <div className="bg-gradient-to-r from-emerald-900 via-emerald-850 to-slate-900 text-white rounded-3xl p-6 md:p-8 shadow-sm relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 relative z-10">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/25 text-xs font-mono tracking-wider font-semibold text-emerald-200">
+              <Sparkles className="h-3 w-3 text-emerald-300" />
+              <span>{lang === "bn" ? "ভাড়াটিয়া ড্যাশবোর্ড" : "Tenant Portal Active"}</span>
+            </div>
+            <h1 className="text-2xl md:text-3.5xl font-extrabold tracking-tight animate-scale-up">
+              {t.welcome}, {displayTenant?.name}!
+            </h1>
+            <p className="text-sm text-emerald-100/90 max-w-xl leading-relaxed">
+              {lang === "bn"
+                ? "আপনার নির্ধারিত ফ্ল্যাট বা ভাড়াকৃত ইউনিটের বিবরণ, চুক্তিনামা এবং বাড়ি ভাড়ার ব্যাংক বা মোবাইল ব্যাংকিং হিস্ট্রি চেক করুন সহজে।"
+                : "View details of your rented subunit, active rental agreements, terms, and payment receipts securely."}
+            </p>
+          </div>
+          <div className="flex items-center gap-6 relative z-10">
+            <div className="p-4 rounded-xl bg-white/10 border border-white/5 text-center font-mono shrink-0">
+              <span className="block text-2xl font-extrabold">{settings.bdtSymbol} {totalDueAmount.toLocaleString()}</span>
+              <span className="text-[10px] uppercase text-emerald-200 font-semibold">{lang === "bn" ? "মোট বকেয়া ভাড়া" : "Outstanding Due"}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Tenant Statistics Summary Widgets */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-xs flex items-center justify-between">
+            <div className="space-y-1.5">
+              <span className="text-xs text-slate-400 font-extrabold tracking-wider block uppercase">
+                {lang === "bn" ? "পরিশোধিত ভাড়া" : "Total Rent Paid"}
+              </span>
+              <strong className="text-2xl font-black tracking-tight text-slate-900 font-mono">
+                {settings.bdtSymbol} {totalPaidAmount.toLocaleString()}
+              </strong>
+            </div>
+            <span className="h-10 w-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+              <CheckCircle className="h-5 w-5" />
+            </span>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-xs flex items-center justify-between">
+            <div className="space-y-1.5">
+              <span className="text-xs text-slate-400 font-extrabold tracking-wider block uppercase">
+                {lang === "bn" ? "নিরাপত্তা জামানত" : "Security Deposit Paid"}
+              </span>
+              <strong className="text-2xl font-black tracking-tight text-slate-900 font-mono">
+                {settings.bdtSymbol} {(activeAgreement?.depositAmount || displayTenant?.advancedPayment || 0).toLocaleString()}
+              </strong>
+            </div>
+            <span className="h-10 w-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
+              <Landmark className="h-5 w-5" />
+            </span>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-slate-150 shadow-xs flex items-center justify-between">
+            <div className="space-y-1.5">
+              <span className="text-xs text-slate-400 font-extrabold tracking-wider block uppercase">
+                {lang === "bn" ? "মাসিক নির্ধারিত ভাড়া" : "Monthly Rent Amount"}
+              </span>
+              <strong className="text-2xl font-black tracking-tight text-slate-900 font-mono">
+                {settings.bdtSymbol} {(activeAgreement?.monthlyRentAmount || mySubUnit?.monthlyRent || 0).toLocaleString()}
+              </strong>
+            </div>
+            <span className="h-10 w-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+              <DollarSign className="h-5 w-5" />
+            </span>
+          </div>
+        </div>
+
+        {/* Details and Information Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            {/* Rented Subunit Card */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base">
+                    {lang === "bn" ? "ভাড়াকৃত ইউনিটের বিবরণ" : "Leasing Property Details"}
+                  </h3>
+                  <p className="text-xs text-slate-450">{lang === "bn" ? "সিস্টেম অনুযায়ী সচল ভাড়ার চুক্তি ও অবস্থান" : "Active occupancy matching current lease contract"}</p>
+                </div>
+                <Building2 className="h-5 w-5 text-emerald-600" />
+              </div>
+
+              {myProperty ? (
+                <div className="flex flex-col sm:flex-row items-center gap-5 border border-slate-100 p-4 rounded-xl bg-slate-50/50">
+                  {myProperty.imageUrl && (
+                    <img
+                      src={myProperty.imageUrl}
+                      alt={myProperty.name}
+                      className="w-full sm:w-28 h-20 object-cover rounded-lg border border-slate-100 shadow-3xs flex-none"
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
+                  <div className="space-y-1 min-w-0 flex-1 text-center sm:text-left">
+                    <h4 className="font-extrabold text-slate-800 text-sm">{myProperty.name}</h4>
+                    <p className="text-xs text-slate-500 font-medium">{myProperty.address}</p>
+                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
+                      <span className="text-[10px] uppercase font-bold py-0.5 px-2.5 bg-emerald-50 text-emerald-700 rounded-md border border-emerald-100">
+                        {mySubUnit?.unitNo}
+                      </span>
+                      <span className="text-[10px] uppercase font-bold py-0.5 px-2.5 bg-slate-100 text-slate-700 rounded-md">
+                        {mySubUnit?.category}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl border border-red-100 bg-red-50 text-red-600 text-xs font-bold">
+                  {lang === "bn" ? "ভাড়াকৃত কোন ইউনিটের তথ্য পাওয়া যায়নি।" : "No active lease property assigned."}
+                </div>
+              )}
+
+              {activeAgreement && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-slate-100 pt-4 text-xs">
+                  <div>
+                    <span className="text-slate-400 font-bold block">{lang === "bn" ? "ভাড়ার চুক্তির দলিল নং" : "Agreement Document No"}</span>
+                    <strong className="text-slate-800 font-mono text-[11px] font-black">{activeAgreement.agreementDocNo}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-bold block">{lang === "bn" ? "চুক্তির মেয়াদকাল" : "Lease Term Duration"}</span>
+                    <strong className="text-slate-800 font-medium">{activeAgreement.startDate} - {activeAgreement.endDate} ({lang === "bn" ? "সচল" : "Active"})</strong>
+                  </div>
+                  <div className="sm:col-span-2 bg-indigo-50/40 p-3 rounded-xl border border-indigo-100/40 mt-1">
+                    <span className="text-indigo-800 font-bold flex items-center gap-1.5 mb-1.5">
+                      <FileText className="h-4 w-4" />
+                      {lang === "bn" ? "চুক্তির শর্তাবলী সমূহ:" : "Terms & Conditions Key Points:"}
+                    </span>
+                    <p className="text-[11px] text-slate-600 leading-relaxed whitespace-pre-line font-medium">
+                      {activeAgreement.termsAndConditions}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Rent Receipts Table inside Portal */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-base">
+                  {lang === "bn" ? "ভাড়ার রসিদ ও পেমেন্ট হিস্ট্রি" : "Rent Invoices & Receipts History"}
+                </h3>
+                <p className="text-xs text-slate-450">{lang === "bn" ? "বাড়িওয়ালা কর্তৃক পরিশোধিত ভাড়ার অনলাইন রেকর্ড" : "Digital verification lists received from management owner"}</p>
+              </div>
+
+              {myRentRecords.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-slate-650 min-w-[500px]">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-[10px] text-slate-450 uppercase font-black tracking-wider">
+                        <th className="py-2.5">{lang === "bn" ? "ভাড়ার মাস" : "Billing Month"}</th>
+                        <th className="py-2.5">{lang === "bn" ? "পরিশোধিত" : "Amount Paid"}</th>
+                        <th className="py-2.5">{lang === "bn" ? "বকেয়া" : "Due Balance"}</th>
+                        <th className="py-2.5">{lang === "bn" ? "পেমেন্ট মাধ্যম" : "Payment Method"}</th>
+                        <th className="py-2.5">{lang === "bn" ? "স্ট্যাটাস" : "Payment Status"}</th>
+                        <th className="py-2.5">{lang === "bn" ? "রসিদ নং" : "Receipt No"}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {myRentRecords.map((r) => (
+                        <tr key={r.id} className="hover:bg-slate-50/50">
+                          <td className="py-3 font-semibold font-mono">{r.monthString}</td>
+                          <td className="py-3 font-bold font-mono">{settings.bdtSymbol} {r.amountPaid.toLocaleString()}</td>
+                          <td className="py-3 font-bold font-mono text-rose-600">{r.amountDue > 0 ? `${settings.bdtSymbol} ${r.amountDue.toLocaleString()}` : "-"}</td>
+                          <td className="py-3">
+                            <span className="py-0.5 px-2 bg-slate-100 rounded text-[10px] font-bold text-slate-600">
+                              {r.paymentMethod}
+                            </span>
+                          </td>
+                          <td className="py-3">
+                            <span className={`inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              r.status === "Paid"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                                : r.status === "Partial"
+                                ? "bg-amber-50 text-amber-700 border border-amber-100"
+                                : "bg-red-50 text-red-700 border border-red-100"
+                            }`}>
+                              {r.status}
+                            </span>
+                          </td>
+                          <td className="py-3 font-mono font-medium text-slate-400">{r.receiptNo}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 py-4 text-center italic">{lang === "bn" ? "এখনো কোন ভাড়ার রেকর্ড সংযুক্ত হয়নি।" : "No rental history records updated yet."}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Right Column: Tenant Rental Profile info */}
+          <div className="space-y-6">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+                <span className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 font-extrabold flex items-center justify-center text-sm">
+                  {displayTenant?.name.charAt(0)}
+                </span>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-sm leading-none">
+                    {displayTenant?.name}
+                  </h3>
+                  <span className="text-[10px] text-slate-400 font-medium font-mono">
+                    {displayTenant?.email}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-3.5 text-xs">
+                <div>
+                  <span className="text-slate-400 font-bold block mb-0.5">{lang === "bn" ? "মোবাইল নম্বর" : "Contact Phone"}</span>
+                  <strong className="text-slate-800 font-mono">{displayTenant?.phone}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold block mb-0.5">{lang === "bn" ? "জাতীয় পরিচয়পত্র (NID)" : "NID / Passport"}</span>
+                  <strong className="text-slate-800 font-mono">{displayTenant?.nidOrPassport}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold block mb-0.5">{lang === "bn" ? "জরুরী যোগাযোগ ফোন" : "Emergency Contact"}</span>
+                  <strong className="text-slate-800 font-mono">{displayTenant?.emergencyContact}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold block mb-0.5">{lang === "bn" ? "পরিবারের সদস্য সংখ্যা" : "Family Members Count"}</span>
+                  <strong className="text-slate-800">{displayTenant?.familyMembersCount} {lang === "bn" ? "জন" : "persons"}</strong>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-bold block mb-0.5">{lang === "bn" ? "স্থায়ী ঠিকানা" : "Permanent Address"}</span>
+                  <p className="text-slate-600 font-medium leading-relaxed bg-slate-50 border border-slate-100 p-2.5 rounded-lg text-[11px]">{displayTenant?.permanentAddress}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Contact Portal Owner */}
+            <div className="bg-slate-900 text-white p-6 rounded-2xl space-y-4">
+              <span className="p-2 bg-white/10 rounded-lg inline-block text-emerald-400">
+                <PhoneCall className="h-4 w-4" />
+              </span>
+              <div className="space-y-1">
+                <h4 className="font-extrabold text-sm">{lang === "bn" ? "জরুরী হেল্পলাইন?" : "Reach Owner Help?"}</h4>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  {lang === "bn"
+                    ? "বাড়ি বা ফ্ল্যাটের কোন প্রকার রক্ষণাবেক্ষণ, পানি বা বিদ্যুতের সমস্যা জানাতে সরাসরি বাড়িওয়ালার সাথে যোগাযোগ করুন।"
+                    : "For direct assistance concerning maintenance locks, water pipelines or key handovers, reach your property host."}
+                </p>
+              </div>
+              <div className="border-t border-white/10 pt-3">
+                <span className="text-[10px] text-slate-400 font-bold block uppercase">{lang === "bn" ? "বাড়িওয়ালার নাম:" : "Property Owner name:"}</span>
+                <strong className="text-emerald-400 font-extrabold text-xs">{lang === "bn" ? settings.ownerNameBN : settings.ownerNameEN}</strong>
+                <span className="text-[10px] text-slate-450 block font-mono mt-0.5">Phone: 01712345678</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Core calculations and analytics
   const totalCollections = rentRecords
@@ -53,12 +332,27 @@ export default function Dashboard({
     const total = categoryUnits.length;
     const occupied = categoryUnits.filter((u) => u.status === "Occupied").length;
     const vacant = categoryUnits.filter((u) => u.status === "Vacant").length;
+    const maintenance = categoryUnits.filter((u) => u.status === "Maintenance").length;
+
+    // Calculate aggregated amounts for this category from rentRecords
+    const unitIds = new Set(categoryUnits.map((u) => u.id));
+    const catRecords = rentRecords.filter((rec) => unitIds.has(rec.subUnitId));
+    const collected = catRecords
+      .filter((rec) => rec.status === "Paid" || rec.status === "Partial")
+      .reduce((sum, rec) => sum + rec.amountPaid, 0);
+    const unpaid = catRecords.reduce((sum, rec) => sum + rec.amountDue, 0);
+    const totalExpected = collected + unpaid;
+
     return {
       name: cat,
       label: cat === "House" ? t.house : cat === "Flat" ? t.flat : cat === "Shop" ? t.shop : t.office,
       total,
       occupied,
       vacant,
+      maintenance,
+      collected,
+      unpaid,
+      totalExpected,
     };
   });
 
@@ -363,21 +657,93 @@ export default function Dashboard({
             </div>
 
             {/* Categorized calculations listing as requested */}
-            <div className="space-y-2.5 pt-2 flex-1">
+            <div className="space-y-3 pt-2 flex-1">
               <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                {lang === "bn" ? "ক্যাটাগরি ভিত্তিক ভাড়ার হিসাব" : "Sub-unit Categories Detail"}
+                {lang === "bn" ? "ক্যাটাগরি ভিত্তিক ভাড়ার চার্ট ও হিসাব" : "Property Category Analysis"}
               </h4>
 
-              <div className="divide-y divide-slate-100">
+              <div className="space-y-3">
                 {categoryStats.map((cat) => (
-                  <div key={cat.name} className="flex items-center justify-between py-2 text-xs">
-                    <span className="font-medium text-slate-700">{cat.label}</span>
-                    <div className="flex items-center gap-1.5 font-mono">
-                      <span className="bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded text-slate-600">Total: {cat.total}</span>
-                      <span className="bg-blue-50 text-blue-700 border border-blue-100/60 px-1.5 py-0.5 rounded font-bold">Free: {cat.vacant}</span>
+                  <div key={cat.name} className="p-3.5 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-all space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`p-1.5 rounded-lg border ${
+                          cat.name === "House" ? "text-indigo-600 bg-indigo-50 border-indigo-100" :
+                          cat.name === "Flat" ? "text-emerald-700 bg-emerald-50 border-emerald-100" :
+                          cat.name === "Shop" ? "text-amber-700 bg-amber-50 border-amber-100" :
+                          "text-cyan-700 bg-cyan-50 border-cyan-100"
+                        }`}>
+                          {cat.name === "House" ? <Home className="h-4 w-4" /> :
+                           cat.name === "Flat" ? <Layers className="h-4 w-4" /> :
+                           cat.name === "Shop" ? <Store className="h-4 w-4" /> :
+                           <Briefcase className="h-4 w-4" />}
+                        </span>
+                        <div>
+                          <h4 className="font-extrabold text-xs text-slate-800 leading-tight">{cat.label}</h4>
+                          <span className="text-[10px] text-slate-450 font-medium font-mono">
+                            {cat.total} Units ({cat.occupied} {lang === "bn" ? "ভাড়া" : "Rented"})
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-col text-right">
+                        <span className="text-[10px] font-bold text-slate-800 font-mono">
+                          {settings.bdtSymbol}{cat.totalExpected.toLocaleString()}
+                        </span>
+                        <span className="text-[9px] text-slate-400 font-semibold uppercase">
+                          {lang === "bn" ? "মোট লক্ষ্য" : "Total target"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Progress representation to show occupancy clearly */}
+                    <div className="space-y-1 pt-0.5">
+                      <div className="w-full bg-slate-200/60 h-1.5 rounded-full overflow-hidden flex">
+                        <div 
+                          className="bg-emerald-500 h-full rounded-l-full" 
+                          style={{ width: `${cat.total > 0 ? (cat.occupied / cat.total) * 100 : 0}%` }}
+                        ></div>
+                        <div 
+                          className="bg-indigo-300 h-full" 
+                          style={{ width: `${cat.total > 0 ? (cat.maintenance / cat.total) * 100 : 0}%` }}
+                        ></div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[10px] pt-1">
+                        <div className="flex items-center gap-1.5 font-mono text-slate-550 font-medium">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                          <span>{lang === "bn" ? "আদায়:" : "Paid:"} <strong>{settings.bdtSymbol}{cat.collected.toLocaleString()}</strong></span>
+                        </div>
+                        <div className="flex items-center gap-1.5 font-mono text-rose-600 font-bold">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                          <span>{lang === "bn" ? "বকেয়া:" : "Due:"} <strong>{settings.bdtSymbol}{cat.unpaid.toLocaleString()}</strong></span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
+
+                {/* Grand Total Row */}
+                <div className="p-3.5 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/25 mt-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-extrabold text-indigo-950 uppercase tracking-wider">
+                      {lang === "bn" ? "সর্বমোট লক্ষ্যমাত্রা ভাড়ার হিসাব" : "Consolidated Grand Total"}
+                    </span>
+                    <strong className="text-sm font-black text-indigo-900 font-mono">
+                      {settings.bdtSymbol}{(categoryStats.reduce((sum, c) => sum + c.totalExpected, 0)).toLocaleString()}
+                    </strong>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] border-t border-indigo-100/40 pt-2 font-mono">
+                    <div className="flex items-center gap-1 text-emerald-700 font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      <span>{lang === "bn" ? "মোট আদায়:" : "Paid:"} {settings.bdtSymbol}{(categoryStats.reduce((sum, c) => sum + c.collected, 0)).toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-rose-700 font-bold">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                      <span>{lang === "bn" ? "মোট বকেয়া:" : "Due:"} {settings.bdtSymbol}{(categoryStats.reduce((sum, c) => sum + c.unpaid, 0)).toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from "react";
-import { LicenseAgreement, Property, SubUnit, Tenant, SystemSettings, DEFAULT_TRANSLATIONS } from "../types";
+import { LicenseAgreement, Property, SubUnit, Tenant, SystemSettings, DEFAULT_TRANSLATIONS, UserProfile } from "../types";
 import { FileText, Plus, Search, Calendar, FileType, CheckSquare, Printer, Ban, ShieldCheck, Download } from "lucide-react";
 
 interface AgreementManagerProps {
@@ -16,6 +16,7 @@ interface AgreementManagerProps {
   onAddAgreement: (agg: LicenseAgreement) => void;
   onTerminateAgreement: (id: string) => void;
   lang: "en" | "bn";
+  currentUser?: UserProfile;
 }
 
 export default function AgreementManager({
@@ -27,6 +28,7 @@ export default function AgreementManager({
   onAddAgreement,
   onTerminateAgreement,
   lang,
+  currentUser,
 }: AgreementManagerProps) {
   const t = DEFAULT_TRANSLATIONS[lang];
   const [searchQuery, setSearchQuery] = useState("");
@@ -244,13 +246,25 @@ export default function AgreementManager({
   const getUnitNo = (uid: string) => subUnits.find((su) => su.id === uid)?.unitNo || "N/A";
   const getPropertyName = (pid: string) => properties.find((p) => p.id === pid)?.name || "N/A";
 
-  const filteredAgreementList = agreements.filter((ag) => {
-    const tName = getTenantName(ag.tenantId).toLowerCase();
-    const uNo = getUnitNo(ag.subUnitId).toLowerCase();
-    const pName = getPropertyName(ag.propertyId).toLowerCase();
-    const query = searchQuery.toLowerCase();
-    return tName.includes(query) || uNo.includes(query) || pName.includes(query) || ag.agreementDocNo.toLowerCase().includes(query);
-  });
+  const getTenantIdByEmail = (email?: string) => {
+    if (email === "ariful@outlook.com") return "tenant_1";
+    if (email === "modina.jw@gmail.com") return "tenant_2";
+    if (email === "ceo@fintech.com.bd") return "tenant_3";
+    return "";
+  };
+
+  const isTenant = currentUser?.role === "Tenant";
+  const tenantId = getTenantIdByEmail(currentUser?.email);
+
+  const filteredAgreementList = agreements
+    .filter((ag) => !isTenant || ag.tenantId === (tenantId || "tenant_1"))
+    .filter((ag) => {
+      const tName = getTenantName(ag.tenantId).toLowerCase();
+      const uNo = getUnitNo(ag.subUnitId).toLowerCase();
+      const pName = getPropertyName(ag.propertyId).toLowerCase();
+      const query = searchQuery.toLowerCase();
+      return tName.includes(query) || uNo.includes(query) || pName.includes(query) || ag.agreementDocNo.toLowerCase().includes(query);
+    });
 
   return (
     <div className="space-y-6">
@@ -384,13 +398,15 @@ export default function AgreementManager({
             </p>
           </div>
 
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium shadow-sm"
-          >
-            <Plus className="h-4 w-4" />
-            {t.createAgreement}
-          </button>
+          {!isTenant && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium shadow-sm"
+            >
+              <Plus className="h-4 w-4" />
+              {t.createAgreement}
+            </button>
+          )}
         </div>
 
         {/* List of active agreements/deeds */}
@@ -491,7 +507,7 @@ export default function AgreementManager({
                           <Printer className="h-3.5 w-3.5 text-slate-400" />
                           <span>{lang === "bn" ? "প্রিন্ট" : "Print"}</span>
                         </button>
-                        {ag.status === "Active" && (
+                        {ag.status === "Active" && !isTenant && (
                           <button
                             onClick={() => {
                               if (confirm(lang === "bn" ? "আপনি কি চুক্তিপত্রটি বাতিল করতে চান?" : "Confirm termination?")) {
