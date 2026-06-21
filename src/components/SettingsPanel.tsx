@@ -5,7 +5,7 @@
 
 import React, { useState } from "react";
 import { SystemSettings, DEFAULT_TRANSLATIONS } from "../types";
-import { Save, RefreshCw, Layout, Smartphone, CheckSquare, Sparkles, Trash2, AlertTriangle, Database } from "lucide-react";
+import { Save, RefreshCw, Layout, Smartphone, CheckSquare, Sparkles, Trash2, AlertTriangle, Database, Plus, Tags, Trash } from "lucide-react";
 
 interface SettingsPanelProps {
   settings: SystemSettings;
@@ -16,7 +16,11 @@ interface SettingsPanelProps {
 
 export default function SettingsPanel({ settings, onUpdateSettings, onPurgeDemoData, lang }: SettingsPanelProps) {
   const t = DEFAULT_TRANSLATIONS[lang];
-  const [formData, setFormData] = useState<SystemSettings>({ ...settings });
+  const [formData, setFormData] = useState<SystemSettings>({
+    ...settings,
+    expenseCategories: settings.expenseCategories || ["Utility", "Tax", "Insurance", "Salary", "Other"],
+  });
+  const [newCategory, setNewCategory] = useState("");
   const [showStatus, setShowStatus] = useState<string | null>(null);
 
   const colors = [
@@ -53,6 +57,30 @@ export default function SettingsPanel({ settings, onUpdateSettings, onPurgeDemoD
     }, 3000);
   };
 
+  const handleAddCategory = () => {
+    const trimmed = newCategory.trim();
+    if (!trimmed) return;
+    const currentCats = formData.expenseCategories || ["Utility", "Tax", "Insurance", "Salary", "Other"];
+    if (currentCats.some((c) => c.toLowerCase() === trimmed.toLowerCase())) {
+      alert(lang === "bn" ? "এই ক্যাটাগরি ইতিমধ্যে বিদ্যমান!" : "This category already exists!");
+      return;
+    }
+    setFormData((prev) => ({
+      ...prev,
+      expenseCategories: [...(prev.expenseCategories || ["Utility", "Tax", "Insurance", "Salary", "Other"]), trimmed],
+    }));
+    setNewCategory("");
+  };
+
+  const handleRemoveCategory = (catToRemove: string) => {
+    const currentCats = formData.expenseCategories || ["Utility", "Tax", "Insurance", "Salary", "Other"];
+    const updated = currentCats.filter((c) => c !== catToRemove);
+    setFormData((prev) => ({
+      ...prev,
+      expenseCategories: updated,
+    }));
+  };
+
   const handleReset = () => {
     // Standard default settings
     const defaultData: SystemSettings = {
@@ -76,6 +104,7 @@ export default function SettingsPanel({ settings, onUpdateSettings, onPurgeDemoD
         userManagement: true,
         settings: true,
       },
+      expenseCategories: ["Utility", "Tax", "Insurance", "Salary", "Other"],
     };
     setFormData(defaultData);
     onUpdateSettings(defaultData);
@@ -328,6 +357,67 @@ export default function SettingsPanel({ settings, onUpdateSettings, onPurgeDemoD
                   </label>
                 );
               })}
+            </div>
+          </div>
+
+          {/* Expense Categories configuration */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-100 space-y-4 shadow-sm" id="expense-categories-config">
+            <div className="flex items-center gap-2 border-b border-slate-50 pb-3">
+              <Tags className="h-5 w-5 text-amber-500" />
+              <h2 className="font-semibold text-slate-800 text-base">
+                {lang === "bn" ? "ব্যয়ের ক্যাটাগরি বা খাতসমূহ" : "Expense Categories"}
+              </h2>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              {lang === "bn"
+                ? "সম্পত্তির বিবিধ খরচের ক্ষেত্রে ব্যবহারের জন্য নিজস্ব ক্যাটাগরি বা খাত যোগ অথবা ডিলিট করুন।"
+                : "Add or remove custom expense categories for tagging property miscellaneous expenses."}
+            </p>
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder={lang === "bn" ? "নতুন ক্যাটাগরি লিখুন..." : "New category name..."}
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddCategory();
+                  }
+                }}
+                className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans"
+              />
+              <button
+                type="button"
+                onClick={handleAddCategory}
+                className="p-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors cursor-pointer"
+                title={lang === "bn" ? "যোগ করুন" : "Add category"}
+              >
+                <Plus className="h-4.5 w-4.5" />
+              </button>
+            </div>
+
+            <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto pr-1">
+              {(formData.expenseCategories || ["Utility", "Tax", "Insurance", "Salary", "Other"]).map((cat) => (
+                <div key={cat} className="flex items-center justify-between p-2 hover:bg-slate-50 border border-slate-100 rounded-lg text-xs">
+                  <span className="font-medium text-slate-700 font-sans">{cat}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveCategory(cat)}
+                    className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors"
+                    title={lang === "bn" ? "মুছে ফেলুন" : "Delete category"}
+                  >
+                    <Trash className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+              {(formData.expenseCategories || []).length === 0 && (
+                <div className="text-center py-4 text-slate-400 text-[11px] italic font-sans">
+                  {lang === "bn" ? "কোনো ক্যাটাগরি নেই" : "No expense categories configured."}
+                </div>
+              )}
             </div>
           </div>
 

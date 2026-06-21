@@ -125,6 +125,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
     userManagement: true,
     settings: true,
   },
+  expenseCategories: ["Utility", "Tax", "Insurance", "Salary", "Other"],
 };
 
 export default function App() {

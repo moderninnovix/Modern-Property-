@@ -123,13 +123,14 @@ export interface SystemSettings {
     userManagement: boolean;
     settings: boolean;
   };
+  expenseCategories?: string[];
 }
 
 // Miscellaneous Expenses (utilities, tax, insurance, salaries, etc.)
 export interface MiscExpense {
   id: string;
   propertyId: string; // Connected to a property
-  category: "Utility" | "Tax" | "Insurance" | "Salary" | "Other";
+  category: string;
   amount: number;
   description: string;
   expenseDate: string; // "YYYY-MM" or "YYYY-MM-DD"

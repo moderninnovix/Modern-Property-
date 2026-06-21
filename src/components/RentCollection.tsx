@@ -44,10 +44,10 @@ export default function RentCollection({
 
   // New Tab state & Expense Form Fields
   const [activeTab, setActiveTab] = useState<"rents" | "expenses">("rents");
-  const [expenseFilter, setExpenseFilter] = useState<"All" | "Utility" | "Tax" | "Insurance" | "Salary" | "Other">("All");
+  const [expenseFilter, setExpenseFilter] = useState<string>("All");
   const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [expensePropertyId, setExpensePropertyId] = useState(properties[0]?.id || "");
-  const [expenseCategory, setExpenseCategory] = useState<MiscExpense["category"]>("Utility");
+  const [expenseCategory, setExpenseCategory] = useState<string>(() => (settings.expenseCategories && settings.expenseCategories.length > 0) ? settings.expenseCategories[0] : "Utility");
   const [expenseAmount, setExpenseAmount] = useState<number>(0);
   const [expenseDescription, setExpenseDescription] = useState("");
   const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split("T")[0]);
@@ -499,7 +499,7 @@ export default function RentCollection({
             {/* Expense filters & summary counters */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white px-5 py-4 rounded-2xl border border-slate-100 shadow-3xs">
               <div className="flex flex-wrap items-center gap-1.5">
-                {(["All", "Utility", "Tax", "Insurance", "Salary", "Other"] as const).map((cat) => (
+                {(["All", ...(settings.expenseCategories || ["Utility", "Tax", "Insurance", "Salary", "Other"])]).map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setExpenseFilter(cat)}
@@ -515,6 +515,7 @@ export default function RentCollection({
                     {cat === "Insurance" && (lang === "bn" ? "বীমা/ইন্সুরেন্স" : "Insurance")}
                     {cat === "Salary" && (lang === "bn" ? "বেতন ও মজুরি" : "Salary / Guard")}
                     {cat === "Other" && (lang === "bn" ? "অন্যান্য খরচ" : "Other Miscellaneous")}
+                    {!["All", "Utility", "Tax", "Insurance", "Salary", "Other"].includes(cat) && cat}
                   </button>
                 ))}
               </div>
@@ -791,14 +792,22 @@ export default function RentCollection({
                   <select
                     required
                     value={expenseCategory}
-                    onChange={(e) => setExpenseCategory(e.target.value as any)}
+                    onChange={(e) => setExpenseCategory(e.target.value)}
                     className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none"
                   >
-                    <option value="Utility">{lang === "bn" ? "Utility/Utilities (পানি/বিদ্যুৎ/গ্যাস)" : "Utility (Water/Electricity/Gas)"}</option>
-                    <option value="Tax">{lang === "bn" ? "City Corp Tax (ট্যাক্স/কর)" : "Tax (City Corp Tax)"}</option>
-                    <option value="Insurance">{lang === "bn" ? "Home Insurance (বীমা/ইন্সুরেন্স)" : "Insurance (Home Insurance)"}</option>
-                    <option value="Salary">{lang === "bn" ? "Guard / caretaker (গার্ড/কেয়ারটেকার বেতন)" : "Salary (Staff/Security Salary)"}</option>
-                    <option value="Other">{lang === "bn" ? "Other Miscellaneous (অন্যান্য বিবিধ)" : "Other Miscellaneous Costs"}</option>
+                    {(settings.expenseCategories || ["Utility", "Tax", "Insurance", "Salary", "Other"]).map((cat) => {
+                      let label = cat;
+                      if (cat === "Utility") label = lang === "bn" ? "Utility/Utilities (পানি/বিদ্যুৎ/গ্যাস)" : "Utility (Water/Electricity/Gas)";
+                      else if (cat === "Tax") label = lang === "bn" ? "City Corp Tax (ট্যাক্স/কর)" : "Tax (City Corp Tax)";
+                      else if (cat === "Insurance") label = lang === "bn" ? "Home Insurance (বীমা/ইন্সুরেন্স)" : "Insurance (Home Insurance)";
+                      else if (cat === "Salary") label = lang === "bn" ? "Guard / caretaker (গার্ড/কেয়ারটেকার বেতন)" : "Salary (Staff/Security Salary)";
+                      else if (cat === "Other") label = lang === "bn" ? "Other Miscellaneous (অন্যান্য বিবিধ)" : "Other Miscellaneous Costs";
+                      return (
+                        <option key={cat} value={cat}>
+                          {label}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 
