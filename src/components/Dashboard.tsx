@@ -621,49 +621,10 @@ export default function Dashboard({
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Dynamic customized rent collections chart */}
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm lg:col-span-2 flex flex-col space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <h3 className="font-bold text-slate-900 text-base">{lang === "bn" ? "মাসিক ভাড়া সারণী তালিকা (২০২৬)" : "Monthly Rent Collections (2026)"}</h3>
-              <p className="text-xs text-slate-450">Values aggregated from rent collection records</p>
-            </div>
-            <TrendingUp className="h-5 w-5 text-indigo-600" />
-          </div>
-
-          {/* Bar Charts built cleanly with dynamic Tailwind inline style heights */}
-          <div className="flex-1 min-h-[220px] flex items-end justify-between gap-2.5 pt-8 px-2 border-b border-slate-250">
-            {monthData.map((data, idx) => {
-              const pct = (data.collected / maxMonthValue) * 100;
-              return (
-                <div key={idx} className="flex-1 flex flex-col items-center group relative cursor-pointer" id={`chart-bar-${idx}`}>
-                  {/* Tooltip on hover */}
-                  <div className="absolute bottom-full mb-2 bg-slate-950 text-white text-[10px] font-mono py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-30 shadow-xs">
-                    {settings.bdtSymbol} {data.collected.toLocaleString()}
-                  </div>
-
-                  {/* Active Bar */}
-                  <div
-                    style={{ height: `${pct > 7 ? pct : 7}%` }}
-                    className={`w-full rounded-t-sm transition-all duration-500 ${
-                      data.collected > 0
-                        ? "bg-gradient-to-t from-indigo-600 to-indigo-400 group-hover:from-indigo-700 group-hover:to-indigo-500"
-                        : "bg-slate-100 group-hover:bg-slate-200"
-                    }`}
-                  ></div>
-
-                  {/* Month Label */}
-                  <span className="text-[10px] font-mono text-slate-500 mt-2">{data.month}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Occupancy and Category Breakdown */}
+        {/* Occupancy Rate and Unit Status Column */}
         <div className="space-y-4 flex flex-col">
           {/* Stunning theme-informed widget block */}
-          <div className="bg-indigo-900 p-5 rounded-xl text-white shadow-md">
+          <div className="bg-indigo-900 p-5 rounded-2xl text-white shadow-md">
             <h3 className="text-indigo-200 text-xs font-bold uppercase tracking-wider mb-4">Occupancy Rate</h3>
             <div className="flex items-end gap-3 mb-3">
               <span className="text-4xl font-extrabold tracking-tight">{occupancyPct}%</span>
@@ -677,173 +638,174 @@ export default function Dashboard({
             </div>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex-1 flex flex-col space-y-4">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex-1 flex flex-col justify-between space-y-4">
             <div>
               <h3 className="font-bold text-slate-900 text-sm tracking-tight">{t.unitStatus}</h3>
-              <p className="text-xs text-slate-450">Live room occupancy stats</p>
+              <p className="text-xs text-slate-450 font-sans">Live room occupancy status counts</p>
             </div>
 
             {/* Status Pills */}
             <div className="grid grid-cols-3 gap-2 text-center text-xs">
-              <div className="bg-blue-50 text-blue-800 p-2 rounded-lg border border-blue-100/40 font-mono" id="vacant-count-pill">
+              <div className="bg-blue-50 text-blue-800 p-2.5 rounded-xl border border-blue-100/40 font-mono" id="vacant-count-pill">
                 <span className="block text-slate-500 text-[9px] uppercase font-bold tracking-wider">{lang === "bn" ? "খালি" : "Vacant"}</span>
-                <strong className="text-base font-bold">{countOfVacant}</strong>
+                <strong className="text-base font-extrabold block mt-1">{countOfVacant}</strong>
               </div>
-              <div className="bg-green-50 text-green-800 p-2 rounded-lg border border-green-100/40 font-mono" id="occupied-count-pill">
+              <div className="bg-green-50 text-green-800 p-2.5 rounded-xl border border-green-100/40 font-mono" id="occupied-count-pill">
                 <span className="block text-slate-500 text-[9px] uppercase font-bold tracking-wider">{lang === "bn" ? "ভাড়া" : "Occupied"}</span>
-                <strong className="text-base font-bold">{countOfOccupied}</strong>
+                <strong className="text-base font-extrabold block mt-1">{countOfOccupied}</strong>
               </div>
-              <div className="bg-amber-50 text-amber-800 p-2 rounded-lg border border-amber-100/40 font-mono" id="maint-count-pill">
+              <div className="bg-amber-50 text-amber-800 p-2.5 rounded-xl border border-amber-100/40 font-mono" id="maint-count-pill">
                 <span className="block text-slate-500 text-[9px] uppercase font-bold tracking-wider">{lang === "bn" ? "মেরামত" : "Maint"}</span>
-                <strong className="text-base font-bold">{countOfMaintenance}</strong>
+                <strong className="text-base font-extrabold block mt-1">{countOfMaintenance}</strong>
               </div>
             </div>
+          </div>
+        </div>
 
-            {/* Categorized calculations listing as requested */}
-            <div className="space-y-3 pt-2 flex-1">
-              <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                {lang === "bn" ? "ক্যাটাগরি ভিত্তিক ভাড়ার চার্ট ও হিসাব" : "Property Category Analysis"}
-              </h4>
+        {/* Property Category Analysis Column */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col space-y-4">
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm tracking-tight">
+              {lang === "bn" ? "ক্যাটাগরি ভিত্তিক ভাড়ার চার্ট ও হিসাব" : "Property Category Analysis"}
+            </h3>
+            <p className="text-xs text-slate-450 font-sans">Live room status and targets grouped by premise category</p>
+          </div>
 
-              <div className="space-y-3">
-                {categoryStats.map((cat) => (
-                  <div key={cat.name} className="p-3.5 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-all space-y-2.5">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className={`p-1.5 rounded-lg border ${
-                          cat.name === "House" ? "text-indigo-600 bg-indigo-50 border-indigo-100" :
-                          cat.name === "Flat" ? "text-emerald-700 bg-emerald-50 border-emerald-100" :
-                          cat.name === "Shop" ? "text-amber-700 bg-amber-50 border-amber-100" :
-                          "text-cyan-700 bg-cyan-50 border-cyan-100"
-                        }`}>
-                          {cat.name === "House" ? <Home className="h-4 w-4" /> :
-                           cat.name === "Flat" ? <Layers className="h-4 w-4" /> :
-                           cat.name === "Shop" ? <Store className="h-4 w-4" /> :
-                           <Briefcase className="h-4 w-4" />}
-                        </span>
-                        <div>
-                          <h4 className="font-extrabold text-xs text-slate-800 leading-tight">{cat.label}</h4>
-                          <span className="text-[10px] text-slate-450 font-medium font-mono">
-                            {cat.total} Units ({cat.occupied} {lang === "bn" ? "ভাড়া" : "Rented"})
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="flex flex-col text-right">
-                        <span className="text-[10px] font-bold text-slate-800 font-mono">
-                          {settings.bdtSymbol}{cat.totalExpected.toLocaleString()}
-                        </span>
-                        <span className="text-[9px] text-slate-400 font-semibold uppercase">
-                          {lang === "bn" ? "মোট লক্ষ্য" : "Total target"}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Progress representation to show occupancy clearly */}
-                    <div className="space-y-1 pt-0.5">
-                      <div className="w-full bg-slate-200/60 h-1.5 rounded-full overflow-hidden flex">
-                        <div 
-                          className="bg-emerald-500 h-full rounded-l-full" 
-                          style={{ width: `${cat.total > 0 ? (cat.occupied / cat.total) * 100 : 0}%` }}
-                        ></div>
-                        <div 
-                          className="bg-indigo-300 h-full" 
-                          style={{ width: `${cat.total > 0 ? (cat.maintenance / cat.total) * 100 : 0}%` }}
-                        ></div>
-                      </div>
-
-                      <div className="flex items-center justify-between text-[10px] pt-1">
-                        <div className="flex items-center gap-1.5 font-mono text-slate-550 font-medium">
-                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                          <span>{lang === "bn" ? "আদায়:" : "Paid:"} <strong>{settings.bdtSymbol}{cat.collected.toLocaleString()}</strong></span>
-                        </div>
-                        <div className="flex items-center gap-1.5 font-mono text-rose-600 font-bold">
-                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                          <span>{lang === "bn" ? "বকেয়া:" : "Due:"} <strong>{settings.bdtSymbol}{cat.unpaid.toLocaleString()}</strong></span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Grand Total Row */}
-                <div className="p-3.5 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/25 mt-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-extrabold text-indigo-950 uppercase tracking-wider">
-                      {lang === "bn" ? "সর্বমোট লক্ষ্যমাত্রা ভাড়ার হিসাব" : "Consolidated Grand Total"}
+          <div className="space-y-3 flex-1 overflow-y-auto max-h-[420px] scrollbar-thin pr-1">
+            {categoryStats.map((cat) => (
+              <div key={cat.name} className="p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-all space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className={`p-1.5 rounded-lg border ${
+                      cat.name === "House" ? "text-indigo-600 bg-indigo-50 border-indigo-100" :
+                      cat.name === "Flat" ? "text-emerald-700 bg-emerald-50 border-emerald-100" :
+                      cat.name === "Shop" ? "text-amber-700 bg-amber-50 border-amber-100" :
+                      "text-cyan-700 bg-cyan-50 border-cyan-100"
+                    }`}>
+                      {cat.name === "House" ? <Home className="h-4 w-4" /> :
+                       cat.name === "Flat" ? <Layers className="h-4 w-4" /> :
+                       cat.name === "Shop" ? <Store className="h-4 w-4" /> :
+                       <Briefcase className="h-4 w-4" />}
                     </span>
-                    <strong className="text-sm font-black text-indigo-900 font-mono">
-                      {settings.bdtSymbol}{(categoryStats.reduce((sum, c) => sum + c.totalExpected, 0)).toLocaleString()}
-                    </strong>
-                  </div>
-                  <div className="flex items-center justify-between text-[10px] border-t border-indigo-100/40 pt-2 font-mono">
-                    <div className="flex items-center gap-1 text-emerald-700 font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                      <span>{lang === "bn" ? "মোট আদায়:" : "Paid:"} {settings.bdtSymbol}{(categoryStats.reduce((sum, c) => sum + c.collected, 0)).toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-rose-700 font-bold">
-                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                      <span>{lang === "bn" ? "মোট বকেয়া:" : "Due:"} {settings.bdtSymbol}{(categoryStats.reduce((sum, c) => sum + c.unpaid, 0)).toLocaleString()}</span>
+                    <div>
+                      <h4 className="font-extrabold text-xs text-slate-800 leading-tight">{cat.label}</h4>
+                      <span className="text-[10px] text-slate-450 font-medium font-mono">
+                        {cat.total} Units ({cat.occupied} {lang === "bn" ? "ভাড়া" : "Rented"})
+                      </span>
                     </div>
                   </div>
+                  
+                  <div className="flex flex-col text-right">
+                    <span className="text-[10px] font-bold text-slate-800 font-mono">
+                      {settings.bdtSymbol}{cat.totalExpected.toLocaleString()}
+                    </span>
+                    <span className="text-[9px] text-slate-400 font-semibold uppercase font-sans">
+                      {lang === "bn" ? "টার্গেট" : "Target"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Progress representation to show occupancy clearly */}
+                <div className="space-y-1">
+                  <div className="w-full bg-slate-200/60 h-1.5 rounded-full overflow-hidden flex">
+                    <div 
+                      className="bg-emerald-500 h-full rounded-l-full" 
+                      style={{ width: `${cat.total > 0 ? (cat.occupied / cat.total) * 100 : 0}%` }}
+                    ></div>
+                    <div 
+                      className="bg-indigo-300 h-full" 
+                      style={{ width: `${cat.total > 0 ? (cat.maintenance / cat.total) * 100 : 0}%` }}
+                    ></div>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[10px]">
+                    <div className="flex items-center gap-1 font-mono text-slate-550 font-medium">
+                      <span className="inline-block w-1 h-1 rounded-full bg-emerald-500"></span>
+                      <span>Paid: {settings.bdtSymbol}{cat.collected.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center gap-1 font-mono text-rose-600 font-bold">
+                      <span className="inline-block w-1 h-1 rounded-full bg-rose-500"></span>
+                      <span>Due: {settings.bdtSymbol}{cat.unpaid.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* Grand Total Row */}
+            <div className="p-3.5 rounded-xl border border-dashed border-indigo-200 bg-indigo-50/25 mt-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-indigo-950 uppercase tracking-widest font-sans">
+                  {lang === "bn" ? "সর্বমোট লক্ষ্যমাত্রা" : "Grand Total"}
+                </span>
+                <strong className="text-xs font-black text-indigo-900 font-mono">
+                  {settings.bdtSymbol}{(categoryStats.reduce((sum, c) => sum + c.totalExpected, 0)).toLocaleString()}
+                </strong>
+              </div>
+              <div className="flex items-center justify-between text-[10px] border-t border-indigo-100/40 pt-1.5 font-mono font-bold">
+                <div className="text-emerald-700">
+                  Paid: {settings.bdtSymbol}{(categoryStats.reduce((sum, c) => sum + c.collected, 0)).toLocaleString()}
+                </div>
+                <div className="text-rose-700">
+                  Due: {settings.bdtSymbol}{(categoryStats.reduce((sum, c) => sum + c.unpaid, 0)).toLocaleString()}
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Recent Activities Feed Card */}
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col space-y-4" id="recent-activities-feed">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-slate-900 text-sm tracking-tight">
-                  {lang === "bn" ? "সাম্প্রতিক কর্মকাণ্ড" : "Recent Activities"}
-                </h3>
-                <p className="text-xs text-slate-400">
-                  {lang === "bn" ? "সর্বশেষ ৫টি ভাড়া প্রাপ্তি" : "Last 5 rent payments received"}
-                </p>
-              </div>
-              <Clock className="h-4.5 w-4.5 text-slate-400 animate-pulse" />
+        {/* Recent Activities Feed Card Column */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col space-y-4" id="recent-activities-feed">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-slate-900 text-sm tracking-tight font-sans">
+                {lang === "bn" ? "সাম্প্রতিক কর্মকাণ্ড" : "Recent Activities"}
+              </h3>
+              <p className="text-xs text-slate-400 font-sans">
+                {lang === "bn" ? "সর্বশেষ ৫টি ভাড়া প্রাপ্তি" : "Last 5 rent payments received"}
+              </p>
             </div>
+            <Clock className="h-4.5 w-4.5 text-slate-400 animate-pulse" />
+          </div>
 
-            <div className="space-y-3">
-              {[...rentRecords]
-                .filter((r) => r.amountPaid > 0)
-                .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())
-                .slice(0, 5)
-                .map((record) => (
-                  <div key={record.id} className="flex items-start justify-between gap-3 text-xs pb-3 border-b border-slate-100 last:border-0 last:pb-0">
-                    <div className="flex items-start gap-2.5">
-                      <span className="p-1.5 rounded-lg bg-green-50 text-green-700 mt-0.5 shrink-0 border border-green-100">
-                        <ArrowUpRight className="h-3.5 w-3.5" />
-                      </span>
-                      <div>
-                        <h4 className="font-bold text-slate-800 leading-tight">
-                          {lookUpTenantName(record.tenantId)}
-                        </h4>
-                        <p className="text-[11px] text-slate-500 mt-0.5">
-                          {lang === "bn" ? "ইউনিট: " : "Unit: "}{" "}
-                          <span className="font-semibold text-indigo-600">{lookUpUnitNo(record.subUnitId)}</span>
-                          {" • "}{lookUpPropertyName(record.propertyId)}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <strong className="text-green-700 font-extrabold font-mono text-xs block">
-                        +{settings.bdtSymbol}{record.amountPaid.toLocaleString()}
-                      </strong>
-                      <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
-                        {record.paymentDate}
-                      </span>
+          <div className="space-y-3 flex-1 overflow-y-auto">
+            {[...rentRecords]
+              .filter((r) => r.amountPaid > 0)
+              .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())
+              .slice(0, 5)
+              .map((record) => (
+                <div key={record.id} className="flex items-start justify-between gap-3 text-xs pb-3 border-b border-slate-100 last:border-0 last:pb-0">
+                  <div className="flex items-start gap-2.5">
+                    <span className="p-1.5 rounded-lg bg-green-50 text-green-700 mt-0.5 shrink-0 border border-green-100">
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                    </span>
+                    <div>
+                      <h4 className="font-bold text-slate-800 leading-tight">
+                        {lookUpTenantName(record.tenantId)}
+                      </h4>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        {lang === "bn" ? "ইউনিট: " : "Unit: "}{" "}
+                        <span className="font-semibold text-indigo-600 font-mono">{lookUpUnitNo(record.subUnitId)}</span>
+                        {" • "}{lookUpPropertyName(record.propertyId)}
+                      </p>
                     </div>
                   </div>
-                ))}
-
-              {rentRecords.filter((r) => r.amountPaid > 0).length === 0 && (
-                <div className="text-center py-6 text-slate-450 text-xs italic">
-                  {lang === "bn" ? "কোনো সাম্প্রতিক ভাড়া আদায় করা হয়নি" : "No recent payments received"}
+                  <div className="text-right shrink-0">
+                    <strong className="text-green-700 font-extrabold font-mono text-xs block">
+                      +{settings.bdtSymbol}{record.amountPaid.toLocaleString()}
+                    </strong>
+                    <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
+                      {record.paymentDate}
+                    </span>
+                  </div>
                 </div>
-              )}
-            </div>
+              ))}
+
+            {rentRecords.filter((r) => r.amountPaid > 0).length === 0 && (
+              <div className="text-center py-6 text-slate-450 text-xs italic">
+                {lang === "bn" ? "কোনো সাম্প্রতিক ভাড়া আদায় করা হয়নি" : "No recent payments received"}
+              </div>
+            )}
           </div>
         </div>
       </div>
