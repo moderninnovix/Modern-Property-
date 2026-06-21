@@ -5,15 +5,16 @@
 
 import React, { useState } from "react";
 import { SystemSettings, DEFAULT_TRANSLATIONS } from "../types";
-import { Save, RefreshCw, Layout, Smartphone, CheckSquare, Sparkles } from "lucide-react";
+import { Save, RefreshCw, Layout, Smartphone, CheckSquare, Sparkles, Trash2, AlertTriangle, Database } from "lucide-react";
 
 interface SettingsPanelProps {
   settings: SystemSettings;
   onUpdateSettings: (newSettings: SystemSettings) => void;
+  onPurgeDemoData?: () => Promise<void>;
   lang: "en" | "bn";
 }
 
-export default function SettingsPanel({ settings, onUpdateSettings, lang }: SettingsPanelProps) {
+export default function SettingsPanel({ settings, onUpdateSettings, onPurgeDemoData, lang }: SettingsPanelProps) {
   const t = DEFAULT_TRANSLATIONS[lang];
   const [formData, setFormData] = useState<SystemSettings>({ ...settings });
   const [showStatus, setShowStatus] = useState<string | null>(null);
@@ -329,6 +330,63 @@ export default function SettingsPanel({ settings, onUpdateSettings, lang }: Sett
               })}
             </div>
           </div>
+
+          {/* Database Maintenance and Purge */}
+          {onPurgeDemoData && (
+            <div className="bg-rose-50/50 p-6 rounded-2xl border border-rose-100 space-y-4 shadow-3xs">
+              <div className="flex items-center gap-2 border-b border-rose-150 pb-3">
+                <Database className="h-5 w-5 text-rose-600 animate-pulse" />
+                <h2 className="font-bold text-rose-850 text-xs uppercase tracking-wider">
+                  {lang === "bn" ? "⚡ ডেটাবেস রক্ষণাবেক্ষণ ও মেমরি সাফ" : "⚡ Database Maintenance & Reset"}
+                </h2>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-[11px] leading-relaxed text-rose-700 font-sans font-medium">
+                  {lang === "bn"
+                    ? "সিস্টেমটি লাইভ পাবলিশ করার পূর্বে ডেমো বা ডামি ডাটা মুছে ফেলা অত্যধিক জরুরী। নিচের বাটনে ক্লিক করলে সমস্ত পরীক্ষামূলক প্রপার্টি, সাব-ইউনিট, ভাড়াটিয়া, চুক্তিনামা, ভাড়া আদায়ের রসিদ, মেরামতের লগ এবং খরচসমূহ চিরতরে মুছে যাবে।"
+                    : "Before final publishing, it is highly recommended to wipe all mock demo datasets. Clicking the button below will permanently delete all demo properties, sub-units, tenants, agreements, records, maintenance issues, and expense entries."}
+                </p>
+                <div className="p-2.5 bg-rose-100/40 rounded-lg border border-rose-200/50 flex items-start gap-2 text-[10px] text-rose-800 font-mono">
+                  <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span>
+                    {lang === "bn"
+                      ? "সাবধান: এই কাজটি অপরিবর্তনযোগ্য। ক্লাউড ফায়ারস্টোর ডেটাবেস এবং ব্রাউজার স্টোরেজ থেকে সমস্ত ডাটা এক ক্লিকে মুছে যাবে।"
+                      : "Warning: This action is non-reversible. This will sync empty state to Firestore completely."}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  const confirmed1 = confirm(
+                    lang === "bn"
+                      ? "আপনি কি নিশ্চিতভাবে সমস্ত ডেমো ডাটা সাফ করতে চান?"
+                      : "Are you sure you want to completely purge and delete all demo properties, tenants, and collections?"
+                  );
+                  if (confirmed1) {
+                    const confirmed2 = confirm(
+                      lang === "bn"
+                        ? "নিশ্চিত করুন: আপনি কি সত্যিই সমস্ত প্রপার্টি ও ভাড়া আদায় রেকর্ড মুছে দিতে চান?"
+                        : "Double Check Confirmation: Clear all property records and rents history?"
+                    );
+                    if (confirmed2) {
+                      try {
+                        await onPurgeDemoData();
+                     } catch (e) {
+                        alert("Error pruning data: " + e);
+                      }
+                    }
+                  }
+                }}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>{lang === "bn" ? "পরীক্ষামূলক ডেমো ডাটা মুছুন" : "Purge & Delete All Demo Data"}</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Submit Bar */}

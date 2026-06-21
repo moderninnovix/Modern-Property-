@@ -4,8 +4,10 @@
  */
 
 import React from "react";
-import { Property, SubUnit, Tenant, LicenseAgreement, RentCollectionRecord, SystemSettings, DEFAULT_TRANSLATIONS, UserProfile } from "../types";
-import { DollarSign, Landmark, Building2, UserCheck, TrendingUp, AlertCircle, Sparkles, LogIn, ArrowUpRight, Percent, Clock, FileText, CheckCircle, ShieldAlert, PhoneCall, Home, Layers, Store, Briefcase } from "lucide-react";
+import { Property, SubUnit, Tenant, LicenseAgreement, RentCollectionRecord, MaintenanceLog, MiscExpense, SystemSettings, DEFAULT_TRANSLATIONS, UserProfile } from "../types";
+import { DollarSign, Landmark, Building2, UserCheck, TrendingUp, AlertCircle, Sparkles, LogIn, ArrowUpRight, Percent, Clock, FileText, CheckCircle, ShieldAlert, PhoneCall, Home, Layers, Store, Briefcase, Wrench, Receipt } from "lucide-react";
+import MonthlyReportGenerator from "./MonthlyReportGenerator";
+import PropertyStatusMap from "./PropertyStatusMap";
 
 interface DashboardProps {
   properties: Property[];
@@ -13,6 +15,8 @@ interface DashboardProps {
   tenants: Tenant[];
   agreements: LicenseAgreement[];
   rentRecords: RentCollectionRecord[];
+  maintenanceLogs: MaintenanceLog[];
+  expenses?: MiscExpense[];
   settings: SystemSettings;
   lang: "en" | "bn";
   currentUser?: UserProfile;
@@ -24,6 +28,8 @@ export default function Dashboard({
   tenants,
   agreements,
   rentRecords,
+  maintenanceLogs = [],
+  expenses = [],
   settings,
   lang,
   currentUser,
@@ -388,6 +394,17 @@ export default function Dashboard({
   const currentMonthProjected = currentMonthPaid + currentMonthDue;
   const collectedPct = currentMonthProjected > 0 ? Math.round((currentMonthPaid / currentMonthProjected) * 100) : 0;
 
+  const currentMonthMaintCost = maintenanceLogs
+    .filter((log) => log.loggedDate && log.loggedDate.startsWith(currentMonthKey))
+    .reduce((sum, log) => sum + (log.cost || 0), 0);
+
+  const currentMonthMiscCost = expenses
+    .filter((exp) => exp.expenseDate && exp.expenseDate.startsWith(currentMonthKey))
+    .reduce((sum, exp) => sum + exp.amount, 0);
+
+  const currentMonthTotalExpenses = currentMonthMaintCost + currentMonthMiscCost;
+  const currentMonthNetProfit = currentMonthPaid - currentMonthTotalExpenses;
+
   const lookUpTenantName = (id: string) => tenants.find((te) => te.id === id)?.name || "N/A";
   const lookUpUnitNo = (id: string) => subUnits.find((u) => u.id === id)?.unitNo || "N/A";
   const lookUpPropertyName = (id: string) => properties.find((p) => p.id === id)?.name || "N/A";
@@ -514,7 +531,7 @@ export default function Dashboard({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {/* Card Module 1: Total Monthly Revenue */}
           <div className="bg-slate-50/40 p-4.5 rounded-xl border border-slate-200/60 flex items-start gap-3.5 hover:border-slate-300 transition-all">
             <span className="p-2.5 rounded-lg bg-green-50 text-green-700 border border-green-100 shrink-0">
@@ -557,25 +574,51 @@ export default function Dashboard({
             </div>
           </div>
 
-          {/* Card Module 3: Projected Income */}
+          {/* Card Module 3: Total Monthly Expenses */}
           <div className="bg-slate-50/40 p-4.5 rounded-xl border border-slate-200/60 flex items-start gap-3.5 hover:border-slate-300 transition-all">
-            <span className="p-2.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 shrink-0">
+            <span className="p-2.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-100 shrink-0">
+              <Receipt className="h-5 w-5" />
+            </span>
+            <div className="space-y-1 flex-1 min-w-0">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-450 block">
+                {lang === "bn" ? "চলতি মাসের খরচ" : "Total Monthly Expenses"}
+              </span>
+              <strong className="text-xl font-extrabold text-amber-700 font-mono block tracking-tight leading-tight">
+                {settings.bdtSymbol} {currentMonthTotalExpenses.toLocaleString()}
+              </strong>
+              <span className="inline-flex text-[10px] font-medium text-amber-700 bg-amber-50 border border-amber-100 rounded px-1.5 py-0.5 mt-1">
+                {lang === "bn" ? `${currentMonthMiscCost.toLocaleString()} বিবিধ | ${currentMonthMaintCost.toLocaleString()} মেরামত` : `${currentMonthMiscCost.toLocaleString()} misc | ${currentMonthMaintCost.toLocaleString()} repairs`}
+              </span>
+            </div>
+          </div>
+
+          {/* Card Module 4: Net Monthly Profit */}
+          <div className="bg-slate-50/40 p-4.5 rounded-xl border border-slate-200/60 flex items-start gap-3.5 hover:border-slate-300 transition-all">
+            <span className={`p-2.5 rounded-lg border shrink-0 ${currentMonthNetProfit >= 0 ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-rose-50 text-rose-700 border-rose-100"}`}>
               <TrendingUp className="h-5 w-5" />
             </span>
             <div className="space-y-1 flex-1 min-w-0">
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-450 block">
-                {lang === "bn" ? "চলতি মাসের সম্ভাব্য আয়" : "Projected Income"}
+                {lang === "bn" ? "নিট মাসিক লাভ" : "Net Monthly Profit"}
               </span>
-              <strong className="text-xl font-extrabold text-indigo-950 font-mono block tracking-tight leading-tight">
-                {settings.bdtSymbol} {currentMonthProjected.toLocaleString()}
+              <strong className={`text-xl font-extrabold font-mono block tracking-tight leading-tight ${currentMonthNetProfit >= 0 ? "text-emerald-700" : "text-rose-700"}`}>
+                {settings.bdtSymbol} {currentMonthNetProfit.toLocaleString()}
               </strong>
-              <span className="inline-flex text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded px-1.5 py-0.5 mt-1">
-                {lang === "bn" ? "মোট সম্ভাব্য সংগ্রহ" : "Total expected collection"}
+              <span className={`inline-flex text-[10px] font-semibold rounded px-1.5 py-0.5 mt-1 border ${currentMonthNetProfit >= 0 ? "text-emerald-700 bg-emerald-50 border-emerald-100" : "text-rose-700 bg-rose-50 border-rose-100"}`}>
+                {currentMonthNetProfit >= 0 ? (lang === "bn" ? "লাভজনক" : "In Profit") : (lang === "bn" ? "ঘাটতি / ক্ষতি" : "Loss / Deficit")}
               </span>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Visual Property Status Map */}
+      <PropertyStatusMap
+        properties={properties}
+        subUnits={subUnits}
+        settings={settings}
+        lang={lang}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Dynamic customized rent collections chart */}
@@ -804,6 +847,18 @@ export default function Dashboard({
           </div>
         </div>
       </div>
+
+      {/* Monthly Summary Ledger Exporter */}
+      <MonthlyReportGenerator
+        properties={properties}
+        subUnits={subUnits}
+        tenants={tenants}
+        rentRecords={rentRecords}
+        maintenanceLogs={maintenanceLogs}
+        expenses={expenses}
+        settings={settings}
+        lang={lang}
+      />
 
       {/* Recent Collections Table */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">

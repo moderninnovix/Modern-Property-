@@ -14,6 +14,7 @@ import {
   SystemSettings,
   DEFAULT_TRANSLATIONS,
   MaintenanceLog,
+  MiscExpense,
 } from "./types";
 import Dashboard from "./components/Dashboard";
 import PropertyManager from "./components/PropertyManager";
@@ -97,6 +98,12 @@ const INITIAL_MAINTENANCE_LOGS: MaintenanceLog[] = [
   { id: "ml_3", propertyId: "prop_2", subUnitId: "unit_5", repairTask: "Shutter lock and rolling hinge greasing", cost: 2500, completedStatus: "Pending", technicianName: "Kabir Hossain", technicianPhone: "01912876543", loggedDate: "2026-06-18" },
 ];
 
+const INITIAL_EXPENSES: MiscExpense[] = [
+  { id: "exp_1", propertyId: "prop_1", category: "Utility", amount: 4500, description: "WASA water bill & electric common area bill June", expenseDate: "2026-06-12" },
+  { id: "exp_2", propertyId: "prop_2", category: "Tax", amount: 12000, description: "Municipal corporation commercial holding tax Q2", expenseDate: "2026-06-05" },
+  { id: "exp_3", propertyId: "prop_1", category: "Insurance", amount: 8000, description: "Fire and Hazard insurance coverage", expenseDate: "2026-05-20" },
+];
+
 const DEFAULT_SETTINGS: SystemSettings = {
   appNameEN: "Property & Rent System",
   appNameBN: "ভাড়া ও সম্পত্তি ব্যবস্থাপনা",
@@ -156,6 +163,11 @@ export default function App() {
   const [maintenanceLogs, setMaintenanceLogs] = useState<MaintenanceLog[]>(() => {
     const stored = localStorage.getItem("bb_maintenancelogs");
     return stored ? JSON.parse(stored) : INITIAL_MAINTENANCE_LOGS;
+  });
+
+  const [expenses, setExpenses] = useState<MiscExpense[]>(() => {
+    const stored = localStorage.getItem("bb_expenses");
+    return stored ? JSON.parse(stored) : INITIAL_EXPENSES;
   });
 
   const [users, setUsers] = useState<UserProfile[]>(() => {
@@ -226,6 +238,9 @@ export default function App() {
 
         const cloudLogs = await loadCollection("maintenanceLogs", INITIAL_MAINTENANCE_LOGS);
         setMaintenanceLogs(cloudLogs);
+
+        const cloudExpenses = await loadCollection("expenses", INITIAL_EXPENSES);
+        setExpenses(cloudExpenses);
 
         const cloudUsers = await loadCollection("users", INITIAL_USERS);
         // Ensure the permanent admin 'Joy Dutta' credentials are up-to-date
@@ -316,6 +331,16 @@ export default function App() {
         .catch(() => setSyncStatus("error"));
     }
   }, [maintenanceLogs, isCloudLoaded]);
+
+  useEffect(() => {
+    localStorage.setItem("bb_expenses", JSON.stringify(expenses));
+    if (isCloudLoaded) {
+      setSyncStatus("syncing");
+      saveCollection("expenses", expenses)
+        .then(() => setSyncStatus("synced"))
+        .catch(() => setSyncStatus("error"));
+    }
+  }, [expenses, isCloudLoaded]);
 
   useEffect(() => {
     localStorage.setItem("bb_users", JSON.stringify(users));
@@ -450,6 +475,24 @@ export default function App() {
 
   const handleAddRentRecord = (rec: RentCollectionRecord) => {
     setRentRecords((prev) => [rec, ...prev]);
+  };
+
+  const handleAddExpense = (exp: MiscExpense) => {
+    setExpenses((prev) => [exp, ...prev]);
+  };
+
+  const handleDeleteExpense = (id: string) => {
+    setExpenses((prev) => prev.filter((exp) => exp.id !== id));
+  };
+
+  const handlePurgeAllDemoData = async () => {
+    setProperties([]);
+    setSubUnits([]);
+    setTenants([]);
+    setAgreements([]);
+    setRentRecords([]);
+    setMaintenanceLogs([]);
+    setExpenses([]);
   };
 
   const handleAddUser = (user: UserProfile) => {
@@ -806,6 +849,8 @@ export default function App() {
                 tenants={tenants}
                 agreements={agreements}
                 rentRecords={rentRecords}
+                maintenanceLogs={maintenanceLogs}
+                expenses={expenses}
                 settings={settings}
                 lang={lang}
                 currentUser={currentUser}
@@ -861,8 +906,11 @@ export default function App() {
                 properties={properties}
                 subUnits={subUnits}
                 tenants={tenants}
+                expenses={expenses}
                 settings={settings}
                 onAddRentRecord={handleAddRentRecord}
+                onAddExpense={handleAddExpense}
+                onDeleteExpense={handleDeleteExpense}
                 lang={lang}
                 currentUser={currentUser}
               />
@@ -883,6 +931,7 @@ export default function App() {
               <SettingsPanel
                 settings={settings}
                 onUpdateSettings={setSettings}
+                onPurgeDemoData={handlePurgeAllDemoData}
                 lang={lang}
               />
             )}

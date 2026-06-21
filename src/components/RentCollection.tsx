@@ -4,8 +4,8 @@
  */
 
 import React, { useState } from "react";
-import { RentCollectionRecord, LicenseAgreement, Property, SubUnit, Tenant, SystemSettings, DEFAULT_TRANSLATIONS, UserProfile } from "../types";
-import { DollarSign, Plus, Printer, Search, Calendar, FileCheck2, UserCheck, Smartphone, CheckSquare, Sparkles } from "lucide-react";
+import { RentCollectionRecord, LicenseAgreement, Property, SubUnit, Tenant, SystemSettings, DEFAULT_TRANSLATIONS, UserProfile, MiscExpense } from "../types";
+import { DollarSign, Plus, Printer, Search, Calendar, FileCheck2, UserCheck, Smartphone, CheckSquare, Sparkles, Receipt, Trash2, Tag, CreditCard } from "lucide-react";
 
 interface RentCollectionProps {
   rentRecords: RentCollectionRecord[];
@@ -13,8 +13,11 @@ interface RentCollectionProps {
   properties: Property[];
   subUnits: SubUnit[];
   tenants: Tenant[];
+  expenses?: MiscExpense[];
   settings: SystemSettings;
   onAddRentRecord: (record: RentCollectionRecord) => void;
+  onAddExpense?: (expense: MiscExpense) => void;
+  onDeleteExpense?: (id: string) => void;
   lang: "en" | "bn";
   currentUser?: UserProfile;
 }
@@ -25,8 +28,11 @@ export default function RentCollection({
   properties,
   subUnits,
   tenants,
+  expenses = [],
   settings,
   onAddRentRecord,
+  onAddExpense,
+  onDeleteExpense,
   lang,
   currentUser,
 }: RentCollectionProps) {
@@ -35,6 +41,16 @@ export default function RentCollection({
   const [statusFilter, setStatusFilter] = useState<"All" | "Paid" | "Partial" | "Unpaid">("All");
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedReceiptForPrint, setSelectedReceiptForPrint] = useState<RentCollectionRecord | null>(null);
+
+  // New Tab state & Expense Form Fields
+  const [activeTab, setActiveTab] = useState<"rents" | "expenses">("rents");
+  const [expenseFilter, setExpenseFilter] = useState<"All" | "Utility" | "Tax" | "Insurance" | "Salary" | "Other">("All");
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
+  const [expensePropertyId, setExpensePropertyId] = useState(properties[0]?.id || "");
+  const [expenseCategory, setExpenseCategory] = useState<MiscExpense["category"]>("Utility");
+  const [expenseAmount, setExpenseAmount] = useState<number>(0);
+  const [expenseDescription, setExpenseDescription] = useState("");
+  const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split("T")[0]);
 
   // Form Fields
   const [formLeaseId, setFormLeaseId] = useState("");
@@ -74,6 +90,28 @@ export default function RentCollection({
     // Reset
     setFormLeaseId("");
     setShowAddModal(false);
+  };
+
+  const handleExpenseSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!expensePropertyId || !expenseAmount || !expenseDate) return;
+
+    if (onAddExpense) {
+      const newExpense: MiscExpense = {
+        id: "exp_" + Math.random().toString(36).substr(2, 9),
+        propertyId: expensePropertyId,
+        category: expenseCategory,
+        amount: Number(expenseAmount),
+        description: expenseDescription,
+        expenseDate: expenseDate,
+      };
+      onAddExpense(newExpense);
+    }
+
+    // Reset
+    setExpenseAmount(0);
+    setExpenseDescription("");
+    setShowExpenseModal(false);
   };
 
   // Lookups
@@ -127,6 +165,18 @@ export default function RentCollection({
       const matchesStatus = statusFilter === "All" || rec.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
+
+  const filteredExpenses = expenses.filter((exp) => {
+    const matchesCategory = expenseFilter === "All" || exp.category === expenseFilter;
+    const propertyObj = properties.find((p) => p.id === exp.propertyId);
+    const pName = (propertyObj?.name || "").toLowerCase();
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = !query || 
+      exp.description.toLowerCase().includes(query) || 
+      exp.category.toLowerCase().includes(query) ||
+      pName.includes(query);
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <div className="space-y-6">
@@ -244,156 +294,321 @@ export default function RentCollection({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-100 pb-5">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-slate-800">
-              {lang === "bn" ? "💵 ভাড়া কালেকশন ও বুকিং রসিদপত্র" : "💵 rent Payments & money Receipts"}
+              {activeTab === "rents" 
+                ? (lang === "bn" ? "💵 ভাড়া কালেকশন ও বুকিং রসিদপত্র" : "💵 Tenant Rent Payments & Receipts")
+                : (lang === "bn" ? "📉 বিবিধ সম্পত্তি খরচের খতিয়ান" : "📉 Property Miscellaneous Expenses")
+              }
             </h1>
             <p className="text-sm text-slate-500 mt-1">
               {lang === "bn"
-                ? "ভাড়া পরিশোধের হিসাব লিখুন, ক্যাশ বা মোবাইল ব্যাংকিং অনুযায়ী রসিদ প্রিন্ট করুন এবং পিডিএফ সংরক্ষণ করুন।"
-                : "Log and compute collected bills. Filter by outstanding balances and trigger printing."}
+                ? "ভাড়া পরিশোধের হিসাব ও সম্পত্তি উন্নয়নমূলক যেকোনো বিবিধ খরচের হিসাব রাখুন ডিজিটাল উপায়ে।"
+                : "Record monthly rents, track utility bills, city corporation taxes, insurance, and caretakers' salary flow."}
             </p>
           </div>
 
           {!isTenant && (
-            <button
-              onClick={() => {
-                if (activeLeaseList.length === 0) {
-                  alert(lang === "bn" ? "প্রথমে ভাড়া চুক্তিপত্র (Agreement) তৈরি করুন!" : "Create an active lease agreement first!");
-                  return;
-                }
-                setShowAddModal(true);
-              }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition-all shadow-sm"
-            >
-              <Plus className="h-4 w-4" />
-              {t.addPayment}
-            </button>
+            <div className="flex items-center gap-2">
+              {activeTab === "rents" ? (
+                <button
+                  onClick={() => {
+                    if (activeLeaseList.length === 0) {
+                      alert(lang === "bn" ? "প্রথমে ভাড়া চুক্তিপত্র (Agreement) তৈরি করুন!" : "Create an active lease agreement first!");
+                      return;
+                    }
+                    setShowAddModal(true);
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition-all shadow-sm cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                  {t.addPayment}
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (properties.length === 0) {
+                      alert(lang === "bn" ? "প্রথমে সম্পত্তি তৈরি করুন!" : "Please add a property first!");
+                      return;
+                    }
+                    setShowExpenseModal(true);
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-sm font-medium transition-all shadow-sm cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                  {lang === "bn" ? "বিবিধ খরচ যোগ করুন" : "Add Property Expense"}
+                </button>
+              )}
+            </div>
           )}
         </div>
 
-        {/* Ledger filters */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white px-5 py-4 rounded-2xl border border-slate-100 shadow-3xs">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setStatusFilter("All")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                statusFilter === "All" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              All Records
-            </button>
-            <button
-              onClick={() => setStatusFilter("Paid")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                statusFilter === "Paid" ? "bg-indigo-600 text-white" : "bg-indigo-50 text-indigo-800 hover:bg-indigo-100"
-              }`}
-            >
-              Paid
-            </button>
-            <button
-              onClick={() => setStatusFilter("Partial")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                statusFilter === "Partial" ? "bg-amber-500 text-white" : "bg-amber-50 text-amber-800 hover:bg-amber-100"
-              }`}
-            >
-              Partial
-            </button>
-            <button
-              onClick={() => setStatusFilter("Unpaid")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
-                statusFilter === "Unpaid" ? "bg-red-600 text-white" : "bg-red-50 text-red-800 hover:bg-red-100"
-              }`}
-            >
-              Unpaid Dues
-            </button>
-          </div>
-
-          <div className="relative max-w-xs w-full">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder={lang === "bn" ? "রসিদ নং বা ভাড়াটিয়া দিয়ে খুঁজুন..." : "Filter collections..."}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-indigo-505 focus:ring-indigo-500"
-            />
-          </div>
+        {/* Navigation Tabs */}
+        <div className="flex border-b border-slate-200 gap-1 pb-px">
+          <button
+            onClick={() => setActiveTab("rents")}
+            className={`py-3 px-6 text-sm font-semibold border-b-2 transition-all cursor-pointer flex items-center gap-2 ${
+              activeTab === "rents"
+                ? "border-indigo-600 text-indigo-650 font-extrabold"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <DollarSign className="h-4 w-4" />
+            <span>{lang === "bn" ? "ভাড়া আদায় খতিয়ান" : "Rent Collection Ledger"}</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("expenses")}
+            className={`py-3 px-6 text-sm font-semibold border-b-2 transition-all cursor-pointer flex items-center gap-2 ${
+              activeTab === "expenses"
+                ? "border-amber-600 text-amber-750 font-extrabold"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Receipt className="h-4 w-4" />
+            <span>{lang === "bn" ? "বিবিধ সম্পত্তি খরচ" : "Miscellaneous Expenses"}</span>
+          </button>
         </div>
 
-        {/* Ledger list */}
-        <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left font-sans text-sm">
-              <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 text-xs font-semibold uppercase tracking-wider">
-                <tr>
-                  <th className="px-6 py-4">Receipt Invoice</th>
-                  <th className="px-6 py-4">{t.tenantName}</th>
-                  <th className="px-6 py-4">Premise Unit</th>
-                  <th className="px-6 py-4">Bill period Date</th>
-                  <th className="px-6 py-4">Money logged</th>
-                  <th className="px-6 py-4">{t.status}</th>
-                  <th className="px-6 py-4 text-right">Certificate</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
-                {filteredRecords.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="text-center py-12 text-xs text-slate-400">
-                      {t.noData}
-                    </td>
-                  </tr>
-                ) : (
-                  filteredRecords.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-4 font-mono font-bold text-xs text-slate-800">
-                        {r.receiptNo}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="font-semibold text-slate-800 block text-sm">{getTenantName(r.tenantId)}</span>
-                        <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-mono font-bold mt-0.5 inline-block uppercase text-center">{r.paymentMethod}</span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="space-y-0.5">
-                          <span className="block text-slate-800 font-medium">{getUnitNo(r.subUnitId)}</span>
-                          <span className="block text-[10px] text-slate-400">{getPropertyName(r.propertyId)}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-xs font-mono text-slate-500 space-y-0.5">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="h-3.5 w-3.5 text-slate-300" />
-                          <span className="font-bold">{r.monthString}</span>
-                        </div>
-                        <div className="pl-5 text-[10px] text-slate-400">Paid: {r.paymentDate}</div>
-                      </td>
-                      <td className="px-6 py-4 text-xs font-mono text-slate-900 space-y-0.5">
-                        <div>Paid: <strong className="text-slate-950 font-bold font-sans text-sm inline-block direct-rent">{settings.bdtSymbol}{r.amountPaid.toLocaleString()}</strong></div>
-                        {r.amountDue > 0 && <div className="text-rose-600 font-bold">Due: {settings.bdtSymbol}{r.amountDue.toLocaleString()}</div>}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center text-xs px-2.5 py-0.5 rounded-full border ${getStatusColor(r.status)}`}>
-                          {getStatusLabel(r.status)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => {
-                            setSelectedReceiptForPrint(r);
-                            setTimeout(() => {
-                              window.print();
-                            }, 300);
-                          }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-xs font-semibold text-slate-700 transition-colors"
-                        >
-                          <Printer className="h-3.5 w-3.5" />
-                          <span>{t.printReceipt}</span>
-                        </button>
-                      </td>
+        {activeTab === "rents" ? (
+          <>
+            {/* Ledger filters */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white px-5 py-4 rounded-2xl border border-slate-100 shadow-3xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setStatusFilter("All")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
+                    statusFilter === "All" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  All Records
+                </button>
+                <button
+                  onClick={() => setStatusFilter("Paid")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
+                    statusFilter === "Paid" ? "bg-indigo-600 text-white" : "bg-indigo-50 text-indigo-800 hover:bg-indigo-100"
+                  }`}
+                >
+                  Paid
+                </button>
+                <button
+                  onClick={() => setStatusFilter("Partial")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
+                    statusFilter === "Partial" ? "bg-amber-500 text-white" : "bg-amber-50 text-amber-800 hover:bg-amber-100"
+                  }`}
+                >
+                  Partial
+                </button>
+                <button
+                  onClick={() => setStatusFilter("Unpaid")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
+                    statusFilter === "Unpaid" ? "bg-red-600 text-white" : "bg-red-50 text-red-800 hover:bg-red-100"
+                  }`}
+                >
+                  Unpaid Dues
+                </button>
+              </div>
+
+              <div className="relative max-w-xs w-full">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder={lang === "bn" ? "রসিদ নং বা ভাড়াটিয়া দিয়ে খুঁজুন..." : "Filter collections..."}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-indigo-505 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            {/* Ledger list */}
+            <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left font-sans text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 text-xs font-semibold uppercase tracking-wider">
+                    <tr>
+                      <th className="px-6 py-4">Receipt Invoice</th>
+                      <th className="px-6 py-4">{t.tenantName}</th>
+                      <th className="px-6 py-4">Premise Unit</th>
+                      <th className="px-6 py-4">Bill period Date</th>
+                      <th className="px-6 py-4">Money logged</th>
+                      <th className="px-6 py-4">{t.status}</th>
+                      <th className="px-6 py-4 text-right">Certificate</th>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {filteredRecords.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="text-center py-12 text-xs text-slate-400 font-sans">
+                          {t.noData}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredRecords.map((r) => (
+                        <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-6 py-4 font-mono font-bold text-xs text-slate-800">
+                            {r.receiptNo}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="font-semibold text-slate-800 block text-sm">{getTenantName(r.tenantId)}</span>
+                            <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-mono font-bold mt-0.5 inline-block uppercase text-center">{r.paymentMethod}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="space-y-0.5">
+                              <span className="block text-slate-800 font-medium">{getUnitNo(r.subUnitId)}</span>
+                              <span className="block text-[10px] text-slate-400">{getPropertyName(r.propertyId)}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-xs font-mono text-slate-500 space-y-0.5">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="h-3.5 w-3.5 text-slate-300" />
+                              <span className="font-bold">{r.monthString}</span>
+                            </div>
+                            <div className="pl-5 text-[10px] text-slate-400">Paid: {r.paymentDate}</div>
+                          </td>
+                          <td className="px-6 py-4 text-xs font-mono text-slate-900 space-y-0.5">
+                            <div>Paid: <strong className="text-slate-950 font-bold font-sans text-sm inline-block direct-rent">{settings.bdtSymbol}{r.amountPaid.toLocaleString()}</strong></div>
+                            {r.amountDue > 0 && <div className="text-rose-600 font-bold">Due: {settings.bdtSymbol}{r.amountDue.toLocaleString()}</div>}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center text-xs px-2.5 py-0.5 rounded-full border ${getStatusColor(r.status)}`}>
+                              {getStatusLabel(r.status)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button
+                              onClick={() => {
+                                setSelectedReceiptForPrint(r);
+                                setTimeout(() => {
+                                  window.print();
+                                }, 300);
+                              }}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-xs font-semibold text-slate-700 transition-colors cursor-pointer text-center"
+                            >
+                              <Printer className="h-3.5 w-3.5" />
+                              <span>{t.printReceipt}</span>
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Expense filters & summary counters */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white px-5 py-4 rounded-2xl border border-slate-100 shadow-3xs">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {(["All", "Utility", "Tax", "Insurance", "Salary", "Other"] as const).map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setExpenseFilter(cat)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-all ${
+                      expenseFilter === cat 
+                        ? "bg-amber-600 text-white font-bold" 
+                        : "bg-slate-100 hover:bg-slate-200 text-slate-650"
+                    }`}
+                  >
+                    {cat === "All" && (lang === "bn" ? "সকল খরচ" : "All Expenses")}
+                    {cat === "Utility" && (lang === "bn" ? "জল/বিদ্যুৎ/গ্যাস ইউটিলিটি" : "Utility Bills")}
+                    {cat === "Tax" && (lang === "bn" ? "সিটি কর/ট্যাক্স" : "Property Taxes")}
+                    {cat === "Insurance" && (lang === "bn" ? "বীমা/ইন্সুরেন্স" : "Insurance")}
+                    {cat === "Salary" && (lang === "bn" ? "বেতন ও মজুরি" : "Salary / Guard")}
+                    {cat === "Other" && (lang === "bn" ? "অন্যান্য খরচ" : "Other Miscellaneous")}
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative max-w-xs w-full">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder={lang === "bn" ? "খরচের বিবরণ বা শিরোনাম খুঁজুন..." : "Search expenses description..."}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-amber-500 focus:ring-amber-400"
+                />
+              </div>
+            </div>
+
+            {/* Expenses list ledger */}
+            <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left font-sans text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 text-xs font-semibold uppercase tracking-wider">
+                    <tr>
+                      <th className="px-6 py-4">Expense Category</th>
+                      <th className="px-6 py-4">Impacted Property</th>
+                      <th className="px-6 py-4">Expense Particulars / Description</th>
+                      <th className="px-6 py-4 font-mono text-center">Cost Amount</th>
+                      <th className="px-6 py-4">Logged Date</th>
+                      {!isTenant && <th className="px-6 py-4 text-right">Delete Action</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {filteredExpenses.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="text-center py-12 text-xs text-slate-400 font-sans">
+                          {lang === "bn" ? "কোন বিবিধ খরচের রেকর্ড পাওয়া যায়নি" : "No miscellaneous expense records registered yet."}
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredExpenses.map((exp) => (
+                        <tr key={exp.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-semibold border ${
+                              exp.category === "Utility" ? "bg-sky-50 text-sky-700 border-sky-100" :
+                              exp.category === "Tax" ? "bg-indigo-50 text-indigo-700 border-indigo-100" :
+                              exp.category === "Insurance" ? "bg-teal-50 text-teal-700 border-teal-100" :
+                              exp.category === "Salary" ? "bg-purple-50 text-purple-700 border-purple-100" :
+                              "bg-slate-50 text-slate-700 border-slate-250"
+                            }`}>
+                              <Receipt className="h-3 w-3" />
+                              <span>
+                                {exp.category === "Utility" ? (lang === "bn" ? "ইউটিলিটি বিল" : "Utility") :
+                                 exp.category === "Tax" ? (lang === "bn" ? "ট্যাক্স/কর" : "Tax") :
+                                 exp.category === "Insurance" ? (lang === "bn" ? "বীমা" : "Insurance") :
+                                 exp.category === "Salary" ? (lang === "bn" ? "বেতন ও মজুরি" : "Salary") :
+                                 (lang === "bn" ? "অন্যান্য" : "Other")}
+                              </span>
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 font-medium text-slate-800">
+                            {getPropertyName(exp.propertyId)}
+                          </td>
+                          <td className="px-6 py-4 text-xs text-slate-650 max-w-sm break-words whitespace-pre-line">
+                            {exp.description || (lang === "bn" ? "-- বিবরণ নেই --" : "-- No details provided --")}
+                          </td>
+                          <td className="px-6 py-4 text-center font-bold text-red-650 font-mono">
+                            {settings.bdtSymbol} {exp.amount.toLocaleString()}
+                          </td>
+                          <td className="px-6 py-4 text-xs text-slate-500 font-mono">
+                            {exp.expenseDate}
+                          </td>
+                          {!isTenant && (
+                            <td className="px-6 py-4 text-right">
+                              <button
+                                onClick={() => {
+                                  if (confirm(lang === "bn" ? "আপনি কি নিশ্চিতভাবে এই খরচ রেকর্ডটি মুছে ফেলতে চান?" : "Are you sure you want to permanently delete this expense ledger item?")) {
+                                    onDeleteExpense && onDeleteExpense(exp.id);
+                                  }
+                                }}
+                                className="inline-flex items-center gap-1.5 px-2 bg-rose-50 hover:bg-rose-100 py-1.5 rounded-lg border border-rose-200 text-xs font-semibold text-rose-700 transition-colors cursor-pointer"
+                                title="Delete expense"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Create Collection Dialog modal */}
         {showAddModal && (
@@ -526,6 +741,124 @@ export default function RentCollection({
                     className="px-4.5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 font-semibold"
                   >
                     {t.save}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Create Expense Dialog modal */}
+        {showExpenseModal && (
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-2xl max-w-md w-full border border-slate-100 shadow-xl overflow-hidden animate-scale-up">
+              <div className="bg-slate-50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="font-semibold text-slate-800 text-base">
+                  {lang === "bn" ? "📉 বিবিধ সম্পত্তি খরচ লিপিবদ্ধ করুন" : "📉 Add Property Miscellaneous Expense"}
+                </h3>
+                <button
+                  onClick={() => setShowExpenseModal(false)}
+                  className="text-slate-400 hover:text-slate-600 text-lg font-bold cursor-pointer"
+                >
+                  &times;
+                </button>
+              </div>
+              <form onSubmit={handleExpenseSubmit} className="p-6 space-y-4 font-sans text-xs">
+                {/* Property choose */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5 font-semibold">
+                    {lang === "bn" ? "প্রাসঙ্গিক সম্পত্তি বা বাড়ি নির্বাচন" : "Select Property"} *
+                  </label>
+                  <select
+                    required
+                    value={expensePropertyId}
+                    onChange={(e) => setExpensePropertyId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none"
+                  >
+                    {properties.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Expense Category */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5 font-semibold">
+                    {lang === "bn" ? "খরচের শ্রেণী বা ক্যাটাগরি" : "Expense Category"} *
+                  </label>
+                  <select
+                    required
+                    value={expenseCategory}
+                    onChange={(e) => setExpenseCategory(e.target.value as any)}
+                    className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none"
+                  >
+                    <option value="Utility">{lang === "bn" ? "Utility/Utilities (পানি/বিদ্যুৎ/গ্যাস)" : "Utility (Water/Electricity/Gas)"}</option>
+                    <option value="Tax">{lang === "bn" ? "City Corp Tax (ট্যাক্স/কর)" : "Tax (City Corp Tax)"}</option>
+                    <option value="Insurance">{lang === "bn" ? "Home Insurance (বীমা/ইন্সুরেন্স)" : "Insurance (Home Insurance)"}</option>
+                    <option value="Salary">{lang === "bn" ? "Guard / caretaker (গার্ড/কেয়ারটেকার বেতন)" : "Salary (Staff/Security Salary)"}</option>
+                    <option value="Other">{lang === "bn" ? "Other Miscellaneous (অন্যান্য বিবিধ)" : "Other Miscellaneous Costs"}</option>
+                  </select>
+                </div>
+
+                {/* Amount */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5 font-semibold">
+                    {lang === "bn" ? "টাকার পরিমাণ" : "Cost Amount"} ({settings.bdtSymbol}) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={expenseAmount || ""}
+                    onChange={(e) => setExpenseAmount(Number(e.target.value))}
+                    className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-lg font-mono focus:outline-none"
+                    placeholder="Enter cost amount..."
+                  />
+                </div>
+
+                {/* Expense Date */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5 font-semibold">
+                    {lang === "bn" ? "খরচ বা পেমেন্টের তারিখ" : "Expense Date"} *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={expenseDate}
+                    onChange={(e) => setExpenseDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-lg font-mono focus:outline-none"
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1.5 font-semibold">
+                    {lang === "bn" ? "খরচের বিবরণ বা পার্টিকুলারস" : "Description / Details"}
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={expenseDescription}
+                    onChange={(e) => setExpenseDescription(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-500 font-sans text-xs"
+                    placeholder={lang === "bn" ? "ডেসক্রিপশন যেমন: বিদ্যুৎ বিল জুন-২০২৬, বা গার্ডের বেতন ইত্যাদি..." : "Explain utility billing reference, tax receipts details etc."}
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowExpenseModal(false)}
+                    className="px-4 py-2 border border-slate-200 text-slate-600 text-sm font-medium rounded-lg hover:bg-slate-50 cursor-pointer"
+                  >
+                    {t.cancel}
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4.5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg font-bold cursor-pointer transition-all shadow-sm"
+                  >
+                    {lang === "bn" ? "সংরক্ষণ করুন" : "Save Expense"}
                   </button>
                 </div>
               </form>
